@@ -24,6 +24,7 @@ import simplepets.brainsynder.api.plugin.config.ConfigOption;
 import simplepets.brainsynder.api.plugin.config.MessageOption;
 import simplepets.brainsynder.commands.PetCommandClass;
 import simplepets.brainsynder.utils.Utilities;
+import simplepets.brainsynder.utils.Scheduler;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -108,7 +109,7 @@ public class SummonCommand implements PetCommandClass {
                     Utilities.applyPetDataDefaults(type, compound);
                     StorageTagCompound finalCompound = compound;
 
-                    PetCore.getInstance().getUserManager().getPetUser(target.getUniqueId()).ifPresent(user -> {
+                    Scheduler.runEntity(target, () -> PetCore.getInstance().getUserManager().getPetUser(target.getUniqueId()).ifPresent(user -> {
                         if (!user.canSpawnMorePets()
                                 && !ConfigOption.MISC_TOGGLES_CONSOLE_BYPASS_LIMIT.get()
                                 && !(sender instanceof Player)) {
@@ -118,7 +119,7 @@ public class SummonCommand implements PetCommandClass {
 
                         SpawnResult<IEntityPet> result = spawner.spawnEntityPet(type, user, finalCompound);
                         handleSpawnResult(sender, result, type, finalCompound);
-                    });
+                    }));
                 });
     }
 
@@ -167,6 +168,7 @@ public class SummonCommand implements PetCommandClass {
                     if (type == null || type == PetType.UNKNOWN) return suggestions;
 
                     SimplePets.getUserManager().getPetUser(player).ifPresent(user -> user.getPetEntity(type).ifPresent(entityPet -> {
+                        if (!Scheduler.isOwnedByCurrentRegion(entityPet.getEntity())) return;
                         String compoundStr = entityPet.asCompound().toString();
                         if (!compoundStr.equals("{}")) suggestions.add(compoundStr);
                     }));
@@ -192,16 +194,20 @@ public class SummonCommand implements PetCommandClass {
     private void handleSpawnResult(org.bukkit.command.CommandSender sender, SpawnResult<IEntityPet> result, PetType type, StorageTagCompound compound) {
         if (!result.isSuccess()) {
             if (result.isFailure()) {
-                TellrawMessage.of(PetCore.getInstance().getMessageFile().getTranslation(MessageOption.FAILED_SUMMON, false).replace("{type}", type.getName())).tooltip(result.failMessage()).send(sender);
+                Scheduler.run(sender, () -> TellrawMessage.of(PetCore.getInstance().getMessageFile()
+                    .getTranslation(MessageOption.FAILED_SUMMON, false).replace("{type}", type.getName()))
+                    .tooltip(result.failMessage()).send(sender));
                 return;
             }
-            sender.sendMessage(PetCore.getInstance().getMessageFile().getTranslation(MessageOption.FAILED_SUMMON).replace("{type}", type.getName()));
+            Scheduler.run(sender, () -> sender.sendMessage(PetCore.getInstance().getMessageFile()
+                .getTranslation(MessageOption.FAILED_SUMMON).replace("{type}", type.getName())));
             return;
         }
 
         if (type == PetType.ARMOR_STAND) {
             ((IEntityControllerPet) result.value()).getVisibleEntity().applyCompound(compound);
         }
-        sender.sendMessage(PetCore.getInstance().getMessageFile().getTranslation(MessageOption.SUMMONED_PET).replace("{type}", type.getName()));
+        Scheduler.run(sender, () -> sender.sendMessage(PetCore.getInstance().getMessageFile()
+            .getTranslation(MessageOption.SUMMONED_PET).replace("{type}", type.getName())));
     }
 }

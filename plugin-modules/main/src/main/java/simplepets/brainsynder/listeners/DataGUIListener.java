@@ -14,6 +14,7 @@ import simplepets.brainsynder.managers.InventoryManager;
 import simplepets.brainsynder.menu.inventory.DataMenu;
 import simplepets.brainsynder.menu.inventory.holders.PetDataHolder;
 import simplepets.brainsynder.utils.Utilities;
+import simplepets.brainsynder.utils.Scheduler;
 
 import java.util.Optional;
 
@@ -34,6 +35,11 @@ public class DataGUIListener implements Listener {
                 PetType type = menu.getType(player);
 
                 user.getPetEntity(type).ifPresent(entityPet -> {
+                    if (!Scheduler.isOwnedByCurrentRegion(entityPet.getEntity())) {
+                        entityPet.teleportToOwner();
+                        Scheduler.runEntityLater(player, () -> menu.update(user), 5L);
+                        return;
+                    }
 
                     Optional<Item> optionalItem = SimplePets.getItemHandler().getItem(e.getCurrentItem());
                     if (optionalItem.isPresent()) {

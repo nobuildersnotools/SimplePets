@@ -7,7 +7,6 @@ import org.bsdevelopment.pluginutils.libs.json.JsonArray;
 import org.bsdevelopment.pluginutils.libs.json.JsonObject;
 import org.bsdevelopment.pluginutils.libs.json.WriterConfig;
 import org.bsdevelopment.pluginutils.utilities.PasteClient;
-import org.bsdevelopment.pluginutils.utilities.WebConnector;
 import org.bsdevelopment.pluginutils.version.ServerVersion;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
@@ -23,6 +22,8 @@ import simplepets.brainsynder.api.user.PetUser;
 import simplepets.brainsynder.commands.PetCommandClass;
 import simplepets.brainsynder.debug.DebugBuilder;
 import simplepets.brainsynder.utils.Premium;
+import simplepets.brainsynder.utils.Scheduler;
+import simplepets.brainsynder.utils.Utilities;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -69,35 +70,47 @@ public class DebugCommand implements PetCommandClass {
                 .withRequirement(sender -> sender instanceof Player)
                 .executesPlayer((player, args) -> {
                     PetUser user = SimplePets.getUserManager().getPetUser(player).get();
-                    JsonObject json = new JsonObject();
-                    json.set("uuid", player.getUniqueId().toString());
-                    json.set("username", player.getName());
-                    json.set("number-of-pets-spawned", user.getPetEntities().size());
-
-                    JsonArray petArray = new JsonArray();
-                    user.getPetEntities().forEach(entityPet -> {
+                    List<java.util.concurrent.CompletableFuture<JsonObject>> futures = user.getPetEntities().stream().map(entityPet ->
+                        Scheduler.callEntity(entityPet.getEntity(), () -> {
                         JsonObject object = new JsonObject();
                         entityPet.fetchPetDebugInformation(object);
-                        petArray.add(object);
-                    });
-                    json.set("pets", petArray);
+                        return object;
+                    })).toList();
 
-                    log(new File(PetCore.getInstance().getDataFolder() + File.separator + "PlayerDebug"),
-                            player.getUniqueId() + ".json", json.toString(WriterConfig.PRETTY_PRINT));
-                    player.sendMessage(prefix() + " §7Generated §e'plugins/SimplePets/PlayerDebug/" + player.getUniqueId() + ".json'");
+                    java.util.concurrent.CompletableFuture.allOf(futures.toArray(java.util.concurrent.CompletableFuture[]::new))
+                        .whenComplete((ignored, throwable) -> Scheduler.runEntity(player, () -> {
+                            if (throwable != null) {
+                                player.sendMessage(prefix() + " §cCould not inspect every pet: " + throwable.getMessage());
+                                return;
+                            }
+                            JsonObject json = new JsonObject();
+                            json.set("uuid", player.getUniqueId().toString());
+                            json.set("username", player.getName());
+                            json.set("number-of-pets-spawned", futures.size());
+                            JsonArray petArray = new JsonArray();
+                            futures.forEach(future -> petArray.add(future.join()));
+                            json.set("pets", petArray);
+
+                            Scheduler.runAsync(() -> {
+                                log(new File(PetCore.getInstance().getDataFolder() + File.separator + "PlayerDebug"),
+                                        player.getUniqueId() + ".json", json.toString(WriterConfig.PRETTY_PRINT));
+                                Scheduler.runEntity(player, () -> player.sendMessage(prefix()
+                                    + " §7Generated §e'plugins/SimplePets/PlayerDebug/" + player.getUniqueId() + ".json'"));
+                            });
+                        }));
                 });
     }
 
     private static void uploadDebugResult(CommandSender sender, JsonObject json) {
         String content = json.toString(WriterConfig.PRETTY_PRINT);
-        log(PetCore.getInstance().getDataFolder(), "debug.json", content);
-        sender.sendMessage(prefix() + " §7Generated §e'plugins/SimplePets/debug.json'");
-        PluginUtilities.getScheduler().runTaskAsynchronously(() -> {
+        Scheduler.runAsync(() -> {
             try {
+                log(PetCore.getInstance().getDataFolder(), "debug.json", content);
+                Scheduler.run(sender, () -> sender.sendMessage(prefix() + " §7Generated §e'plugins/SimplePets/debug.json'"));
                 String url = PasteClient.pasteUrl(PasteClient.upload(content, "json"));
-                PluginUtilities.getScheduler().runTask(() -> sender.sendMessage(prefix() + " §7Uploaded to PasteLog:§e " + url));
+                Scheduler.run(sender, () -> sender.sendMessage(prefix() + " §7Uploaded to PasteLog:§e " + url));
             } catch (Exception e) {
-                PluginUtilities.getScheduler().runTask(() -> sender.sendMessage(prefix() + " §cFailed to upload debug: " + e.getMessage()));
+                Scheduler.run(sender, () -> sender.sendMessage(prefix() + " §cFailed to upload debug: " + e.getMessage()));
             }
         });
     }
@@ -260,7 +273,7 @@ public class DebugCommand implements PetCommandClass {
         }
         int build = Integer.parseInt(String.valueOf(prop.getOrDefault("build", -1)));
 
-        WebConnector.getInputStreamString("https://jenkins.bsdevelopment.org/job/SimplePets/api/json?tree=lastBuild[number]",
+        Utilities.getInputStreamString("https://jenkins.bsdevelopment.org/job/SimplePets/api/json?tree=lastBuild[number]",
                 string -> consumer.accept(parseJenkinsResponse(build, string)));
     }
 

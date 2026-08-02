@@ -1,6 +1,5 @@
 package simplepets.brainsynder.listeners;
 
-import org.bsdevelopment.pluginutils.PluginUtilities;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
 import org.bukkit.event.EventHandler;
@@ -16,6 +15,7 @@ import simplepets.brainsynder.managers.InventoryManager;
 import simplepets.brainsynder.menu.inventory.SavesMenu;
 import simplepets.brainsynder.menu.inventory.holders.SavesHolder;
 import simplepets.brainsynder.utils.Utilities;
+import simplepets.brainsynder.utils.Scheduler;
 
 import java.util.Optional;
 
@@ -49,7 +49,7 @@ public class SavesGUIListener implements Listener {
                 if (Utilities.isSimilar(entry.getValue(), e.getCurrentItem())) {
                     if (e.getClick().isRightClick()) {
                         user.removePetSave(compound);
-                        PluginUtilities.getScheduler().runTaskLater(() -> menu.open(user), 2);
+                        Scheduler.runEntityLater(player, () -> menu.open(user), 2);
                         return;
                     }
 
@@ -74,7 +74,7 @@ public class SavesGUIListener implements Listener {
         if (e.getInventory().getHolder() == null) return;
         if (!(e.getInventory().getHolder() instanceof SavesHolder)) return;
         SavesMenu menu = InventoryManager.PET_SAVES;
-        PluginUtilities.getScheduler().runTaskLater(() -> {
+        Scheduler.runEntityLater(e.getPlayer(), () -> {
             if (!(e.getPlayer().getOpenInventory().getTopInventory().getHolder() instanceof SavesHolder)) {
                 SimplePets.getUserManager().getPetUser((Player) e.getPlayer()).ifPresent(menu::reset);
             }

@@ -1,7 +1,5 @@
 package simplepets.brainsynder.hooks;
 
-import com.google.common.collect.Maps;
-import org.bsdevelopment.pluginutils.PluginUtilities;
 import org.bukkit.Bukkit;
 import simplepets.brainsynder.PetCore;
 import simplepets.brainsynder.api.event.user.PetRenameEvent;
@@ -10,9 +8,12 @@ import simplepets.brainsynder.api.plugin.SimplePets;
 import simplepets.brainsynder.api.plugin.config.MessageOption;
 import simplepets.brainsynder.api.user.PetUser;
 import simplepets.brainsynder.utils.SignMenuFactory;
+import simplepets.brainsynder.utils.Scheduler;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class ProtocolHook {
     private static final Map<String, PetType> typeMap;
@@ -20,7 +21,7 @@ public class ProtocolHook {
 
     public static void renameViaSign(PetUser user, PetType type) {
         typeMap.put(user.getPlayer().getName(), type);
-        List<String> layout = MessageOption.RENAME_SIGN_TEXT.get();
+        List<String> layout = new ArrayList<>(MessageOption.RENAME_SIGN_TEXT.get());
         int index = 0;
         for (String line : layout) {
             if (line.trim().equalsIgnoreCase("{input}")) break;
@@ -43,7 +44,7 @@ public class ProtocolHook {
                 PetType petType = typeMap.getOrDefault(player.getName(), PetType.UNKNOWN);
                 if (petType == PetType.UNKNOWN)
                     return false;  // failure. because reopenIfFail was called, menu will reopen when closed.
-                PluginUtilities.getScheduler().runTask(() -> {
+                Scheduler.runEntity(player, () -> {
                     SimplePets.getUserManager().getPetUser(player).ifPresent(user1 -> {
                         if (line[0].equalsIgnoreCase("reset")) line[0] = null;
 
@@ -58,7 +59,7 @@ public class ProtocolHook {
     }
 
     static {
-        typeMap = Maps.newHashMap();
+        typeMap = new ConcurrentHashMap<>();
         signMenuFactory = new SignMenuFactory(PetCore.getInstance());
     }
 }

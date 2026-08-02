@@ -9,6 +9,7 @@ import simplepets.brainsynder.api.plugin.SimplePets;
 import simplepets.brainsynder.api.plugin.config.MessageOption;
 import simplepets.brainsynder.commands.PetCommandClass;
 import simplepets.brainsynder.menu.inventory.SelectionMenu;
+import simplepets.brainsynder.utils.Scheduler;
 
 public class GUICommand implements PetCommandClass {
 
@@ -28,9 +29,9 @@ public class GUICommand implements PetCommandClass {
                             return;
                         }
                         Player target = args.get("player");
-                        SimplePets.getUserManager().getPetUser(target).ifPresent(user -> {
+                        Scheduler.runEntity(target, () -> SimplePets.getUserManager().getPetUser(target).ifPresent(user -> {
                             SimplePets.getGUIHandler().getInventory(SelectionMenu.class).ifPresent(selectionMenu -> selectionMenu.open(user));
-                        });
+                        }));
                         return;
                     }
                     SimplePets.getUserManager().getPetUser(player).ifPresent(user -> {

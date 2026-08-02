@@ -2,7 +2,6 @@ package simplepets.brainsynder.utils;
 
 import org.apache.commons.io.FileUtils;
 import org.bsdevelopment.nbt.StorageTagCompound;
-import org.bsdevelopment.pluginutils.PluginUtilities;
 import org.bsdevelopment.pluginutils.chat.TellrawMessage;
 import org.bsdevelopment.pluginutils.files.YamlFile;
 import org.bsdevelopment.pluginutils.reflection.FieldAccessor;
@@ -41,7 +40,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
@@ -316,7 +314,7 @@ public class Utilities {
     }
 
     public static void getInputStreamString(String link, Consumer<String> stringReturn) {
-        CompletableFuture.runAsync(() -> {
+        Scheduler.runAsync(() -> {
             try {
                 System.setProperty("http.agent", "Chrome");
                 URL url = new URL(link);
@@ -327,14 +325,11 @@ public class Utilities {
                 connection.setReadTimeout(10000);
                 connection.setDoInput(true);
                 connection.setDoOutput(true);
-                final InputStream stream = connection.getInputStream();
-                PluginUtilities.getScheduler().runTask(() -> {
-                    try {
-                        stringReturn.accept(new String(stream.readAllBytes(), StandardCharsets.UTF_8));
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                });
+                String result;
+                try (InputStream stream = connection.getInputStream()) {
+                    result = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+                }
+                Scheduler.runGlobal(() -> stringReturn.accept(result));
             } catch (Exception ignored) {
             }
         });

@@ -6,6 +6,7 @@ loadbefore: [mcMMO, ProtocolSupport]
 authors: [brainsynder, Thatsmusic99]
 contributors: [traksag]
 api-version: 1.21
+folia-supported: true
 
 permissions:
     pet.amount.bypass:  # This permission bypasses the limit of how many pets can be spawned

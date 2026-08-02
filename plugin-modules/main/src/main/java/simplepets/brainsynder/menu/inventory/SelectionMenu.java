@@ -29,6 +29,8 @@ import simplepets.brainsynder.utils.Utilities;
 
 import java.io.File;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 public class SelectionMenu extends CustomInventory {
     private List<PetType> availableTypes;
@@ -41,9 +43,9 @@ public class SelectionMenu extends CustomInventory {
 
     @Override
     public void loadDefaults() {
-        availableTypes = new ArrayList<>();
-        pagerMap = new HashMap<>();
-        petMap = new HashMap<>();
+        availableTypes = new CopyOnWriteArrayList<>();
+        pagerMap = new ConcurrentHashMap<>();
+        petMap = new ConcurrentHashMap<>();
 
         setDefault("size", 54);
         setDefault("title_comment", "The title of the GUI can support regular color codes '&c' and HEX color codes '&#FFFFFF'");

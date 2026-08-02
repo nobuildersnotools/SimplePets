@@ -16,6 +16,7 @@ import simplepets.brainsynder.utils.Utilities;
 import java.io.File;
 import java.lang.reflect.Constructor;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class ItemManager implements ItemHandler {
     private File registeredFolder;
@@ -24,7 +25,7 @@ public class ItemManager implements ItemHandler {
     //    public RedPlaceholder RED_PLACEHOLDER;
     //    public Data DATA;
     private PetCore plugin;
-    private final Map<String, Item> items = new HashMap<>();
+    private final Map<String, Item> items = new ConcurrentHashMap<>();
 
     public void initiate() {
         plugin = PetCore.getInstance();

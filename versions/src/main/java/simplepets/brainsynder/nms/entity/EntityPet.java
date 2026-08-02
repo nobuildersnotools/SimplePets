@@ -41,17 +41,21 @@ import simplepets.brainsynder.nms.pathfinder.LegacyPathfinderFollowPlayer;
 import simplepets.brainsynder.nms.pathfinder.PathfinderFollowPlayer;
 import simplepets.brainsynder.nms.pathfinder.PathfinderGoalLookAtOwner;
 import simplepets.brainsynder.nms.utils.EntityUtils;
+import simplepets.brainsynder.utils.Scheduler;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 
 public abstract class EntityPet extends EntityBase implements IEntityPet {
     private Map<String, StorageTagCompound> additional;
     private String petName = null;
     private final EntityType<? extends Mob> rawEntityType;
+    private final AtomicBoolean teleportingToOwner = new AtomicBoolean();
 
 
     private final double jumpHeight = 0.5D;
@@ -122,7 +126,8 @@ public abstract class EntityPet extends EntityBase implements IEntityPet {
         });
 
         VersionHelper.setAttributes(this, walkSpeed, flySpeed);
-        EntityUtils.fetchTeam(user.getPlayer()).addEntry(getUUID().toString());
+        // Folia does not currently provide a region-safe scoreboard implementation.
+        if (!Scheduler.isFolia()) EntityUtils.fetchTeam(user.getPlayer()).addEntry(getUUID().toString());
 
         verticalWorldConfines = ConfigOption.MISC_TOGGLES_WORLD_CONFINES_PET_LIMITS.get();
         maxHeight = getEntity().getWorld().getMaxHeight();
@@ -131,7 +136,12 @@ public abstract class EntityPet extends EntityBase implements IEntityPet {
 
     @Override
     public void fetchPetDebugInformation(JsonObject debugInfo) {
-        ServerPlayer player = VersionHelper.getEntityHandle(getPetUser().getPlayer());
+        Player owner = getPetUser().getPlayer();
+        if (owner == null || !Scheduler.isOwnedByCurrentRegion(owner)) {
+            debugInfo.add("owner-region-available", false);
+            return;
+        }
+        ServerPlayer player = VersionHelper.getEntityHandle(owner);
 
         debugInfo.set("display-name", new JsonObject()
                 .add("name", petName)
@@ -173,7 +183,11 @@ public abstract class EntityPet extends EntityBase implements IEntityPet {
 
         JsonObject petData = new JsonObject();
         if (this instanceof IEntityControllerPet controllerPet) {
-            controllerPet.getVisibleEntity().fetchPetDebugInformation(petData);
+            if (controllerPet.getDisplayEntity().filter(Scheduler::isOwnedByCurrentRegion).isPresent()) {
+                controllerPet.getVisibleEntity().fetchPetDebugInformation(petData);
+            } else {
+                petData.add("display-region-available", false);
+            }
         }else{
             fetchPetData(petData);
         }
@@ -196,11 +210,24 @@ public abstract class EntityPet extends EntityBase implements IEntityPet {
 
     @Override
     public void teleportToOwner() {
-        getPetUser().getUserLocation().ifPresent(location -> {
-            setPos(location.getX(), location.getY(), location.getZ());
-            SimplePets.getPetUtilities().runPetCommands(CommandReason.TELEPORT, getPetUser(), getPetType());
-            SimplePets.getParticleHandler().sendParticle(ParticleHandler.Reason.TELEPORT, getPetUser().getPlayer(), location);
-        });
+        if (!teleportingToOwner.compareAndSet(false, true)) return;
+        Optional<Location> destination = getPetUser().getUserLocation();
+        if (destination.isEmpty()) {
+            teleportingToOwner.set(false);
+            return;
+        }
+
+        Location location = destination.get();
+        java.util.List<Entity> entities = java.util.List.copyOf(getEntities());
+        AtomicInteger remaining = new AtomicInteger(entities.size());
+        UUID primaryId = getBukkitEntity().getUniqueId();
+        entities.forEach(entity -> Scheduler.teleport(entity, location, success -> {
+                if (success && entity.getUniqueId().equals(primaryId)) {
+                    SimplePets.getPetUtilities().runPetCommands(CommandReason.TELEPORT, getPetUser(), getPetType());
+                    SimplePets.getParticleHandler().sendParticle(ParticleHandler.Reason.TELEPORT, getPetUser().getPlayer(), location);
+                }
+                if (remaining.decrementAndGet() == 0) teleportingToOwner.set(false);
+        }));
     }
 
     @Override
@@ -279,7 +306,7 @@ public abstract class EntityPet extends EntityBase implements IEntityPet {
                 name = config.get().getDisplayName();
             }
         }
-        String newName = name.replace("%player%", getPetUser().getPlayer().getName());
+        String newName = name.replace("%player%", getPetUser().getOwnerName());
 
         EntityNameChangeEvent event = new EntityNameChangeEvent(this, newName);
         Bukkit.getServer().getPluginManager().callEvent(event);
@@ -307,7 +334,7 @@ public abstract class EntityPet extends EntityBase implements IEntityPet {
 
     @Override
     public UUID getOwnerUUID() {
-        return getPetUser().getPlayer().getUniqueId();
+        return getPetUser().getOwnerUUID();
     }
 
     @Override
@@ -515,9 +542,19 @@ public abstract class EntityPet extends EntityBase implements IEntityPet {
         }
 
         // Handles all other Pet Tasks...
-        if (getPetUser() == null || getPetUser().getPlayer() == null || !getPetUser().getPlayer().isOnline()) {
+        if (getPetUser() == null || getPetUser().getPlayer() == null) {
             if (bukkitEntity != null)
                 bukkitEntity.remove();
+            return;
+        }
+
+        Player player = getPetUser().getPlayer();
+        if (!Scheduler.isOwnedByCurrentRegion(player)) {
+            teleportToOwner();
+            return;
+        }
+        if (!player.isOnline()) {
+            if (bukkitEntity != null) bukkitEntity.remove();
             return;
         }
 
@@ -552,7 +589,6 @@ public abstract class EntityPet extends EntityBase implements IEntityPet {
         if (this.frozen && (getTicksFrozen() < 140)) setTicksFrozen(150);
 
         if (getPetUser().getPlayer() != null) {
-            Player player = getPetUser().getPlayer();
             boolean shifting = player.isSneaking();
             if ((displayNameVisibility && hideNameShifting) && (getPetType() != PetType.SHULKER))
                 getEntity().setCustomNameVisible((!shifting));

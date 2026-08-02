@@ -1,6 +1,5 @@
 package simplepets.brainsynder.listeners;
 
-import org.bsdevelopment.pluginutils.PluginUtilities;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
 import org.bukkit.event.EventHandler;
@@ -19,6 +18,7 @@ import simplepets.brainsynder.menu.inventory.PetSelectorMenu;
 import simplepets.brainsynder.menu.inventory.holders.SelectorHolder;
 import simplepets.brainsynder.utils.Keys;
 import simplepets.brainsynder.utils.Utilities;
+import simplepets.brainsynder.utils.Scheduler;
 
 import java.util.Optional;
 
@@ -62,7 +62,7 @@ public class PetSelectorGUIListener implements Listener {
         if (e.getInventory().getHolder() == null) return;
         if (!(e.getInventory().getHolder() instanceof SelectorHolder)) return;
         PetSelectorMenu menu = InventoryManager.SELECTOR;
-        PluginUtilities.getScheduler().runTaskLater(() -> {
+        Scheduler.runEntityLater(e.getPlayer(), () -> {
             if (!(e.getPlayer().getOpenInventory().getTopInventory().getHolder() instanceof SelectorHolder)) {
                 SimplePets.getUserManager().getPetUser((Player) e.getPlayer()).ifPresent(menu::reset);
             }

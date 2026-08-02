@@ -7,6 +7,7 @@ import org.bukkit.Bukkit;
 import simplepets.brainsynder.api.plugin.config.ConfigOption;
 import simplepets.brainsynder.nms.entity.branch.EntityCubeAbstractPet;
 import simplepets.brainsynder.nms.helper.VersionHelper;
+import simplepets.brainsynder.utils.Scheduler;
 
 import java.util.Random;
 
@@ -15,17 +16,20 @@ public class ControllerCubeEntity extends MoveControl {
     private int jumpDelay;
     private final EntityCubeAbstractPet cubeEntityPet;
     private final Player player;
+    private final org.bukkit.entity.Player owner;
     private int lastJump; // Slime sometimes gets stuck when going around fences so I implemented this variable to patch it
 
     public ControllerCubeEntity(EntityCubeAbstractPet entityslime) {
         super(entityslime);
         this.cubeEntityPet = entityslime;
-        this.player = VersionHelper.getEntityHandle(Bukkit.getPlayer(cubeEntityPet.getOwnerUUID()));
+        this.owner = Bukkit.getPlayer(cubeEntityPet.getOwnerUUID());
+        this.player = VersionHelper.getEntityHandle(owner);
         this.yRot = 180.0F * entityslime.getYRot() / 3.1415927F;
     }
 
     @Override
     public void tick() {
+        if (owner == null || !Scheduler.isOwnedByCurrentRegion(owner)) return;
         if (!mob.getNavigation().isInProgress()) return;
         // Store owner
         int stoppingDistance = ConfigOption.PATHFINDING_MAX_DISTANCE.get();

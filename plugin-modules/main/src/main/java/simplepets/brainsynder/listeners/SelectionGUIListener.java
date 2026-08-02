@@ -1,7 +1,6 @@
 package simplepets.brainsynder.listeners;
 
 import org.bsdevelopment.nbt.StorageTagCompound;
-import org.bsdevelopment.pluginutils.PluginUtilities;
 import org.bsdevelopment.pluginutils.inventory.ItemBuilder;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -20,6 +19,7 @@ import simplepets.brainsynder.managers.InventoryManager;
 import simplepets.brainsynder.menu.inventory.SelectionMenu;
 import simplepets.brainsynder.menu.inventory.holders.SelectionHolder;
 import simplepets.brainsynder.utils.Utilities;
+import simplepets.brainsynder.utils.Scheduler;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -68,7 +68,7 @@ public class SelectionGUIListener implements Listener {
                         return;
                     }
 
-                    PluginUtilities.getScheduler().runTask(() ->
+                    Scheduler.runEntity(player, () ->
                         Utilities.handlePetSpawning(user, type.getType(), new StorageTagCompound(), false));
                     break;
 
@@ -82,7 +82,7 @@ public class SelectionGUIListener implements Listener {
         if (e.getInventory().getHolder() == null) return;
         if (!(e.getInventory().getHolder() instanceof SelectionHolder)) return;
         SelectionMenu menu = InventoryManager.SELECTION;
-        PluginUtilities.getScheduler().runTaskLater(() -> {
+        Scheduler.runEntityLater(e.getPlayer(), () -> {
             if (!(e.getPlayer().getOpenInventory().getTopInventory().getHolder() instanceof SelectionHolder)) {
                 SimplePets.getUserManager().getPetUser((Player) e.getPlayer()).ifPresent(menu::reset);
             }

@@ -1,6 +1,5 @@
 package simplepets.brainsynder.menu.items.list;
 
-import org.bsdevelopment.pluginutils.PluginUtilities;
 import org.bsdevelopment.pluginutils.inventory.ItemBuilder;
 import simplepets.brainsynder.api.Namespace;
 import simplepets.brainsynder.api.entity.IEntityPet;
@@ -11,6 +10,7 @@ import simplepets.brainsynder.api.user.PetUser;
 import simplepets.brainsynder.managers.InventoryManager;
 import simplepets.brainsynder.menu.inventory.DataMenu;
 import simplepets.brainsynder.menu.inventory.PetSelectorMenu;
+import simplepets.brainsynder.utils.Scheduler;
 
 import java.io.File;
 
@@ -49,7 +49,7 @@ public class Remove extends Item {
         if (masterUser.getPetEntities().size() == 1) {
             if (ConfigOption.MISC_TOGGLES_AUTO_CLOSE_REMOVE.get())
                 masterUser.getPlayer().closeInventory();
-            PluginUtilities.getScheduler().runTaskLater(() ->
+            Scheduler.runEntityLater(masterUser.getPlayer(), () ->
                 masterUser.getPetEntities().stream().findFirst().ifPresent(iEntityPet -> {
                     masterUser.removePet(iEntityPet.getPetType());
                     if (inventory instanceof DataMenu) masterUser.updateDataMenu();
@@ -60,7 +60,7 @@ public class Remove extends Item {
         menu.setTask(masterUser.getPlayer().getName(), (user, type) -> {
             if (ConfigOption.MISC_TOGGLES_AUTO_CLOSE_REMOVE.get())
                 user.getPlayer().closeInventory();
-            PluginUtilities.getScheduler().runTaskLater(() -> {
+            Scheduler.runEntityLater(masterUser.getPlayer(), () -> {
                 user.removePet(type);
                 if (inventory instanceof DataMenu) user.updateDataMenu();
             }, 2);

@@ -25,16 +25,18 @@ import simplepets.brainsynder.debug.DebugLevel;
 import simplepets.brainsynder.nms.entity.EntityPet;
 import simplepets.brainsynder.nms.entity.special.EntityControllerPet;
 import simplepets.brainsynder.nms.helper.VersionHelper;
+import simplepets.brainsynder.utils.Scheduler;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class SpawnerUtil implements ISpawnUtil {
     private final Map<PetType, Class<?>> petMap;
     private final Map<PetType, Integer> spawnCount;
 
     public SpawnerUtil (ClassLoader classLoader, String targetVersionName) {
-        petMap = new HashMap<>();
-        spawnCount = new HashMap<>();
+        petMap = new ConcurrentHashMap<>();
+        spawnCount = new ConcurrentHashMap<>();
 
         for (PetType type : PetType.values()) {
             if (type.getEntityClass() == null) continue;
@@ -125,7 +127,9 @@ public class SpawnerUtil implements ISpawnUtil {
                 return SpawnResult.fail("The spawning of this pet was cancelled by another plugin.");
             }
 
-            if (!location.getChunk().isLoaded()) location.getChunk().load();
+            if (!location.getWorld().isChunkLoaded(location.getBlockX() >> 4, location.getBlockZ() >> 4)) {
+                return SpawnResult.fail("The target chunk is not loaded");
+            }
 
             if (VersionHelper.addEntity(((CraftWorld) location.getWorld()).getHandle(), customEntity, CreatureSpawnEvent.SpawnReason.CUSTOM)) {
                 user.setPet(customEntity);
@@ -135,8 +139,7 @@ public class SpawnerUtil implements ISpawnUtil {
                     customEntity.setPetName(name);
                 }
                 SimplePets.getPetUtilities().runPetCommands(CommandReason.SPAWN, user, type);
-                int count = spawnCount.getOrDefault(type, 0);
-                spawnCount.put(type, (count+1));
+                spawnCount.merge(type, 1, Integer::sum);
                 return SpawnResult.success(customEntity);
             }
         }catch (Exception e) {
@@ -190,6 +193,7 @@ public class SpawnerUtil implements ISpawnUtil {
                     if (dist < radius * radius && (!hollow || dist >= (radius - 1.0D) * (radius - 1.0D))) {
                         Location l = new Location(loc.getWorld(), x, y, z);
                         if (checks) {
+                            if (!Scheduler.isOwnedByCurrentRegion(l)) continue;
                             if ((!l.getBlock().isEmpty()) && (!l.getBlock().isPassable())) continue;
                             if ((l.getBlock().getRelative(BlockFace.DOWN).isEmpty())
                                     || (l.getBlock().getRelative(BlockFace.DOWN).isPassable()))
@@ -201,7 +205,10 @@ public class SpawnerUtil implements ISpawnUtil {
             }
         }
 
-        if (circleblocks.isEmpty()) return circle(loc, radius, height, hollow, sphere, false);
+        if (circleblocks.isEmpty()) {
+            if (Scheduler.isFolia()) return List.of(loc.clone());
+            return circle(loc, radius, height, hollow, sphere, false);
+        }
 
         return circleblocks;
     }

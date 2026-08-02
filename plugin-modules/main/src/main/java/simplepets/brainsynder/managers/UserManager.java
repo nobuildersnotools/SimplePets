@@ -9,6 +9,7 @@ import simplepets.brainsynder.api.user.UserManagement;
 import simplepets.brainsynder.impl.PetOwner;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
 public class UserManager implements UserManagement {
@@ -18,8 +19,8 @@ public class UserManager implements UserManagement {
 
     public UserManager(PetCore plugin) {
         this.PLUGIN = plugin;
-        this.userMap = new HashMap<>();
-        this.uuidCache = new HashMap<>();
+        this.userMap = new ConcurrentHashMap<>();
+        this.uuidCache = new ConcurrentHashMap<>();
     }
 
     @Override
@@ -49,14 +50,7 @@ public class UserManager implements UserManagement {
     public Optional<PetUser> getPetUser(Player player) {
         if (player == null) return Optional.empty();
 
-        PetUser user;
-        if (userMap.containsKey(player.getUniqueId())) {
-            user = userMap.get(player.getUniqueId());
-        } else {
-            user = new PetOwner(player);
-            userMap.put(player.getUniqueId(), user);
-        }
-        return Optional.of(user);
+        return Optional.of(userMap.computeIfAbsent(player.getUniqueId(), ignored -> new PetOwner(player)));
     }
 
 

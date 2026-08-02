@@ -18,6 +18,7 @@ import simplepets.brainsynder.api.plugin.config.ConfigOption;
 import simplepets.brainsynder.api.user.PetUser;
 import simplepets.brainsynder.nms.entity.EntityPet;
 import simplepets.brainsynder.nms.helper.VersionHelper;
+import simplepets.brainsynder.utils.Scheduler;
 
 import java.util.EnumSet;
 
@@ -49,12 +50,16 @@ public class PathfinderFollowPlayer extends Goal {
         // Simple Check in case user is null
         if (user == null) {
             this.user = entity.getPetUser();
-            this.player = VersionHelper.<ServerPlayer>getEntityHandle(user.getPlayer());
         }
 
         if (user == null) return false; // Failed: no user found
         if (user.getPlayer() == null) return false; // Failed: no player found
         if (entity == null) return false; // Failed: entity is missing ?!?
+        if (!Scheduler.isOwnedByCurrentRegion(user.getPlayer())) {
+            entity.teleportToOwner();
+            return false;
+        }
+        this.player = VersionHelper.getEntityHandle(user.getPlayer());
 
         if (!user.getPlayer().isOnline()) return false; // Failed: player is not online
 
@@ -78,11 +83,16 @@ public class PathfinderFollowPlayer extends Goal {
 
     @Override // called after start() and if canUse() == true
     public boolean canContinueToUse() {
+        if (!Scheduler.isOwnedByCurrentRegion(user.getPlayer())) return false;
         return !navigation.isInProgress() && (entity.distanceToSqr(player) < (double) (this.maxRange * this.maxRange));
     }
 
     @Override
     public void tick() {
+        if (!Scheduler.isOwnedByCurrentRegion(user.getPlayer())) {
+            entity.teleportToOwner();
+            return;
+        }
         if (entity.distanceToSqr(this.player) >= teleportDistance) { // Will teleport the pet if the player is more than 155 blocks away
             if (entity.distanceTo(this.player) >= 80) { // Will teleport the pet if the player is more than 144 blocks away
                 entity.teleportToOwner(); // Will ignore all checks and just teleport to the player

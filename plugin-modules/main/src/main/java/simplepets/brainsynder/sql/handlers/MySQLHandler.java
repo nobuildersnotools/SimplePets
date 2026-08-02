@@ -49,8 +49,7 @@ public class MySQLHandler implements SQLHandler {
     @Override
     public CompletableFuture<Boolean> sendPlayerData(UUID uuid, String name, StorageTagCompound compound) {
         return CompletableFuture
-            .supplyAsync(() -> sendPlayerDataSync(uuid, name, compound), PetCore.getInstance().async)
-            .thenApplyAsync(result -> result, PetCore.getInstance().sync);
+            .supplyAsync(() -> sendPlayerDataSync(uuid, name, compound), PetCore.getInstance().async);
     }
 
     @Override
@@ -118,7 +117,7 @@ public class MySQLHandler implements SQLHandler {
             }
 
             return compound;
-        }, PetCore.getInstance().async).thenApplyAsync(result -> result, PetCore.getInstance().sync);
+        }, PetCore.getInstance().async);
     }
 
     @Override
@@ -140,7 +139,7 @@ public class MySQLHandler implements SQLHandler {
             }
 
             return count;
-        }, PetCore.getInstance().async).thenApplyAsync(result -> result, PetCore.getInstance().sync);
+        }, PetCore.getInstance().async);
     }
 
     @Override
@@ -256,7 +255,7 @@ public class MySQLHandler implements SQLHandler {
             }
 
             return BiOptional.of(rawCount, totalCount);
-        }, PetCore.getInstance().async).thenApplyAsync(result -> result, PetCore.getInstance().sync);
+        }, PetCore.getInstance().async);
     }
 
     @Override
@@ -291,7 +290,7 @@ public class MySQLHandler implements SQLHandler {
             }
 
             return BiOptional.of(rawCount, totalCount);
-        }, PetCore.getInstance().async).thenApplyAsync(result -> result, PetCore.getInstance().sync);
+        }, PetCore.getInstance().async);
     }
 
     @Override
@@ -314,6 +313,6 @@ public class MySQLHandler implements SQLHandler {
             } catch (SQLException ignored) {
             }
             return list;
-        }, PetCore.getInstance().async).thenApplyAsync(result -> result, PetCore.getInstance().sync);
+        }, PetCore.getInstance().async);
     }
 }

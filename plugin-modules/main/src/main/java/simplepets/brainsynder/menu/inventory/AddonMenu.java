@@ -30,9 +30,11 @@ import simplepets.brainsynder.managers.ItemManager;
 import simplepets.brainsynder.menu.inventory.holders.AddonHolder;
 import simplepets.brainsynder.menu.items.list.Air;
 import simplepets.brainsynder.utils.Keys;
+import simplepets.brainsynder.utils.Scheduler;
 
 import java.io.File;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
 public class AddonMenu extends CustomInventory {
@@ -46,9 +48,9 @@ public class AddonMenu extends CustomInventory {
 
     @Override
     public void loadDefaults() {
-        addonCache = new HashMap<>();
-        pagerMap = new HashMap<>();
-        installerMap = new HashMap<>();
+        addonCache = new ConcurrentHashMap<>();
+        pagerMap = new ConcurrentHashMap<>();
+        installerMap = new ConcurrentHashMap<>();
 
         setDefault("_COMMENT_", "This menu is only viewed by people who have permission to it (Not recommended for regular users to have access to)");
         setDefault("size", 54);
@@ -164,7 +166,7 @@ public class AddonMenu extends CustomInventory {
             player.openInventory(inv);
             return;
         }
-        handleFetch(player.getName(), addons -> {
+        handleFetch(player, addons -> {
             List<ItemBuilder> items = Lists.newArrayList();
 
             AddonManager manager = PetCore.getInstance().getAddonManager();
@@ -220,7 +222,8 @@ public class AddonMenu extends CustomInventory {
         open(user, page, false);
     }
 
-    public void handleFetch(String name, Consumer<List<AddonCloudData>> consumer) {
+    public void handleFetch(Player player, Consumer<List<AddonCloudData>> consumer) {
+        String name = player.getName();
         if (addonCache.containsKey(name)) {
             consumer.accept(addonCache.get(name));
             return;
@@ -228,7 +231,7 @@ public class AddonMenu extends CustomInventory {
 
         PetCore.getInstance().getAddonManager().fetchAddons(jsonValues -> {
             addonCache.put(name, jsonValues);
-            consumer.accept(jsonValues);
+            Scheduler.runEntity(player, () -> consumer.accept(jsonValues));
         });
     }
 

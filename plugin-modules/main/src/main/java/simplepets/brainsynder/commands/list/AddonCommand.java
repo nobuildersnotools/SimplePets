@@ -1,6 +1,5 @@
 package simplepets.brainsynder.commands.list;
 
-import org.bsdevelopment.pluginutils.PluginUtilities;
 import org.bsdevelopment.pluginutils.command.CommandBuilder;
 import org.bsdevelopment.pluginutils.libs.json.Json;
 import org.bsdevelopment.pluginutils.libs.json.JsonObject;
@@ -14,6 +13,7 @@ import simplepets.brainsynder.commands.PetCommandClass;
 import simplepets.brainsynder.managers.AddonManager;
 import simplepets.brainsynder.menu.inventory.AddonMenu;
 import simplepets.brainsynder.utils.Utilities;
+import simplepets.brainsynder.utils.Scheduler;
 
 import java.io.File;
 import java.util.Optional;
@@ -61,7 +61,7 @@ public class AddonCommand implements PetCommandClass {
 
                     sender.sendMessage(PetCore.getInstance().getMessageFile().getTranslation(MessageOption.PREFIX) + " §7Attempting to install: '" + targetAddon + "'");
                     manager.downloadViaName(cloudData.getName(), cloudData.getDownloadURL(), () -> {
-                        sender.sendMessage(PetCore.getInstance().getMessageFile().getTranslation(MessageOption.PREFIX) + " §7" + targetAddon + " has been successfully installed!");
+                        Scheduler.run(sender, () -> sender.sendMessage(PetCore.getInstance().getMessageFile().getTranslation(MessageOption.PREFIX) + " §7" + targetAddon + " has been successfully installed!"));
                     });
                 });
     }
@@ -82,18 +82,18 @@ public class AddonCommand implements PetCommandClass {
                         Utilities.getInputStreamString("https://bsdevelopment.org/addons/addons.json", result -> {
                             JsonObject json = (JsonObject) Json.parse(result);
                             if (!json.names().contains(name)) {
-                                sender.sendMessage(PetCore.getInstance().getMessageFile().getTranslation(MessageOption.PREFIX) + " §c" + name + " is not in the addon database: https://pluginwiki.us/addons/");
+                                Scheduler.run(sender, () -> sender.sendMessage(PetCore.getInstance().getMessageFile().getTranslation(MessageOption.PREFIX) + " §c" + name + " is not in the addon database: https://pluginwiki.us/addons/"));
                                 return;
                             }
 
                             String url = ((JsonObject) json.get(name)).getString("url", null);
                             if (url == null) {
-                                sender.sendMessage(PetCore.getInstance().getMessageFile().getTranslation(MessageOption.PREFIX) + " §c" + name + " seems to be missing the download URL (Contact brainsynder)");
+                                Scheduler.run(sender, () -> sender.sendMessage(PetCore.getInstance().getMessageFile().getTranslation(MessageOption.PREFIX) + " §c" + name + " seems to be missing the download URL (Contact brainsynder)"));
                                 return;
                             }
 
                             manager.update(localData, url, () -> {
-                                sender.sendMessage(PetCore.getInstance().getMessageFile().getTranslation(MessageOption.PREFIX) + " §7" + name + " has been successfully updated!");
+                                Scheduler.run(sender, () -> sender.sendMessage(PetCore.getInstance().getMessageFile().getTranslation(MessageOption.PREFIX) + " §7" + name + " has been successfully updated!"));
                             });
                         });
                     });
@@ -110,13 +110,13 @@ public class AddonCommand implements PetCommandClass {
                     AddonManager manager = PetCore.getInstance().getAddonManager();
                     manager.cleanup();
                     File folder = manager.getFolder();
-                    PluginUtilities.getScheduler().runTaskLater(() -> {
+                    Scheduler.runGlobalLater(() -> {
                         if (!folder.exists()) return;
                         for (File file : folder.listFiles()) {
                             manager.loadAddon(file);
                         }
 
-                        sender.sendMessage(PetCore.getInstance().getMessageFile().getTranslation(MessageOption.PREFIX) + ChatColor.GRAY + "All Addons have been reloaded");
+                        Scheduler.run(sender, () -> sender.sendMessage(PetCore.getInstance().getMessageFile().getTranslation(MessageOption.PREFIX) + ChatColor.GRAY + "All Addons have been reloaded"));
                     }, 1);
                 });
     }

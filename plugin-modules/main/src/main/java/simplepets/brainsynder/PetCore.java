@@ -49,6 +49,7 @@ import simplepets.brainsynder.sql.handlers.MySQLHandler;
 import simplepets.brainsynder.sql.handlers.SQLiteHandler;
 import simplepets.brainsynder.utils.JavaVersion;
 import simplepets.brainsynder.utils.Premium;
+import simplepets.brainsynder.utils.Scheduler;
 import simplepets.brainsynder.utils.Utilities;
 import simplepets.brainsynder.utils.VersionFields;
 import simplepets.brainsynder.utils.debug.Debug;
@@ -59,7 +60,9 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
@@ -78,7 +81,7 @@ public class PetCore extends JavaPlugin implements IPetsPlugin {
 
     private ISpawnUtil SPAWN_UTIL;
     private UserManager USER_MANAGER;
-    private PetConfiguration PET_CONFIG;
+    private volatile PetConfiguration PET_CONFIG;
     private RenameManager renameManager;
     private ItemManager itemManager;
     private InventoryManager inventoryManager;
@@ -92,8 +95,7 @@ public class PetCore extends JavaPlugin implements IPetsPlugin {
     private IPetUtilities petUtilities;
     private SQLHandler sqlHandler;
 
-    public final Executor sync = task -> PluginUtilities.getScheduler().runTask(task);
-    public final Executor async = task -> PluginUtilities.getScheduler().runTaskAsynchronously(task);
+    public final Executor async = Scheduler::runAsync;
 
     @Override
     public void onEnable() {
@@ -237,7 +239,7 @@ public class PetCore extends JavaPlugin implements IPetsPlugin {
 
             debug.debug(SimplePets.ADDON, "Loading addons in '" + ConfigOption.ADDON_LOAD_TIME.get() + " " + timeunit + "'");
 
-            PluginUtilities.getScheduler().runTaskLater(() -> {
+            Scheduler.runGlobalLater(() -> {
                 addonManager.checkAddons();
 
                 handleMetrics();
@@ -259,10 +261,10 @@ public class PetCore extends JavaPlugin implements IPetsPlugin {
 
         if (Bukkit.getOnlinePlayers().isEmpty()) return;
         // Delay it for a second to actually have the database load
-        PluginUtilities.getScheduler().runTaskLater(() -> {
+        Scheduler.runGlobalLater(() -> {
             debug.debug(DebugLevel.HIDDEN, "Respawning pets for players (if there are any)");
             UserManagement userManager = SimplePets.getUserManager();
-            Bukkit.getOnlinePlayers().forEach(userManager::getPetUser);
+            Bukkit.getOnlinePlayers().forEach(player -> Scheduler.runEntity(player, () -> userManager.getPetUser(player)));
         }, 20);
 
     }
@@ -275,12 +277,24 @@ public class PetCore extends JavaPlugin implements IPetsPlugin {
         targetVersion = null;
         if (petUtilities == null) return; // Failed to load this field due to unsupported version
         SimplePets.getDebugLogger().debug(DebugLevel.NORMAL, "Saving player pets (if there are any)", false);
-        if (USER_MANAGER != null)
-            USER_MANAGER.getAllUsers().forEach(user -> {
-                if (user.getPlayer() != null) {
-                    ((PetOwner) user).markForRespawn();
+        if (USER_MANAGER != null) {
+            List<PetOwner> owners = USER_MANAGER.getAllUsers().stream()
+                .filter(PetOwner.class::isInstance).map(PetOwner.class::cast).toList();
+            CompletableFuture<?>[] saves = owners.stream().map(PetOwner::getPendingSave)
+                .toArray(CompletableFuture[]::new);
+            try {
+                CompletableFuture.allOf(saves).get(10, TimeUnit.SECONDS);
+            } catch (Exception exception) {
+                getLogger().warning("Timed out waiting for pet saves during shutdown");
+            }
+            if (Scheduler.isFolia()) {
+                if (owners.stream().anyMatch(PetOwner::hasPets)) {
+                    getLogger().warning("Some Folia pet regions did not retire before plugin shutdown; their last completed save was preserved");
                 }
-            });
+            } else {
+                owners.stream().filter(PetOwner::hasPets).forEach(PetOwner::saveSynchronouslyOnDisable);
+            }
+        }
 
         DebugCommand.fetchDebug(json -> {
             json.set("reloaded", wasPluginReloaded());
@@ -310,6 +324,7 @@ public class PetCore extends JavaPlugin implements IPetsPlugin {
         addonManager = null;
         debug = null;
         fullyStarted = false;
+        Scheduler.cancelTasks();
     }
 
     private boolean checkJavaVersion() {

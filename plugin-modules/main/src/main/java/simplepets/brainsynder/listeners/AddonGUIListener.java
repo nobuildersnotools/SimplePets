@@ -1,6 +1,5 @@
 package simplepets.brainsynder.listeners;
 
-import org.bsdevelopment.pluginutils.PluginUtilities;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
@@ -19,6 +18,7 @@ import simplepets.brainsynder.managers.InventoryManager;
 import simplepets.brainsynder.menu.inventory.AddonMenu;
 import simplepets.brainsynder.menu.inventory.holders.AddonHolder;
 import simplepets.brainsynder.utils.Keys;
+import simplepets.brainsynder.utils.Scheduler;
 
 import java.util.Optional;
 
@@ -54,7 +54,7 @@ public class AddonGUIListener implements Listener {
                     e.getInventory().setItem(e.getRawSlot(), stack);
 
                     PetCore.getInstance().getAddonManager().downloadViaName(name, container.get(Keys.ADDON_URL, PersistentDataType.STRING), () ->
-                        PluginUtilities.getScheduler().runTaskLater(() ->
+                        Scheduler.runEntityLater(player, () ->
                             menu.open(user, menu.getCurrentPage(user), menu.isInstallerGUI(user)), 10));
                     return;
                 }
@@ -65,7 +65,7 @@ public class AddonGUIListener implements Listener {
                         e.getInventory().setItem(e.getRawSlot(), stack);
 
                         PetCore.getInstance().getAddonManager().update(module.getLocalData(), container.get(Keys.ADDON_UPDATE, PersistentDataType.STRING), () ->
-                            PluginUtilities.getScheduler().runTaskLater(() ->
+                            Scheduler.runEntityLater(player, () ->
                                 menu.open(user, menu.getCurrentPage(user), menu.isInstallerGUI(user)), 2));
                         return;
                     }
@@ -73,7 +73,7 @@ public class AddonGUIListener implements Listener {
                     boolean enabled = !module.isEnabled();
                     PetCore.getInstance().getAddonManager().toggleAddonModule(module, enabled);
 
-                    PluginUtilities.getScheduler().runTaskLater(() ->
+                    Scheduler.runEntityLater(player, () ->
                         menu.open(user, menu.getCurrentPage(user), menu.isInstallerGUI(user)), 2);
                 });
 
@@ -86,7 +86,7 @@ public class AddonGUIListener implements Listener {
         if (e.getInventory().getHolder() == null) return;
         if (!(e.getInventory().getHolder() instanceof AddonHolder)) return;
         AddonMenu menu = InventoryManager.ADDONS;
-        PluginUtilities.getScheduler().runTaskLater(() -> {
+        Scheduler.runEntityLater(e.getPlayer(), () -> {
             if (!(e.getPlayer().getOpenInventory().getTopInventory().getHolder() instanceof AddonHolder)) {
                 SimplePets.getUserManager().getPetUser((Player) e.getPlayer()).ifPresent(menu::reset);
             }

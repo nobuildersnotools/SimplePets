@@ -3,13 +3,11 @@ package simplepets.brainsynder.managers;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import org.apache.commons.io.FileUtils;
-import org.bsdevelopment.pluginutils.PluginUtilities;
 import org.bsdevelopment.pluginutils.files.YamlFile;
 import org.bsdevelopment.pluginutils.libs.json.Json;
 import org.bsdevelopment.pluginutils.libs.json.JsonArray;
 import org.bsdevelopment.pluginutils.libs.json.JsonObject;
 import org.bsdevelopment.pluginutils.text.AdvString;
-import org.bsdevelopment.pluginutils.utilities.WebConnector;
 import org.bukkit.Bukkit;
 import org.bukkit.event.HandlerList;
 import org.bukkit.plugin.Plugin;
@@ -21,6 +19,8 @@ import simplepets.brainsynder.addon.PetModule;
 import simplepets.brainsynder.api.plugin.SimplePets;
 import simplepets.brainsynder.debug.DebugBuilder;
 import simplepets.brainsynder.debug.DebugLevel;
+import simplepets.brainsynder.utils.Scheduler;
+import simplepets.brainsynder.utils.Utilities;
 
 import java.io.*;
 import java.lang.reflect.InvocationTargetException;
@@ -31,7 +31,8 @@ import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
@@ -49,12 +50,12 @@ public class AddonManager {
 
     public AddonManager(PetCore plugin) {
         this.plugin = plugin;
-        tempMap = Maps.newHashMap();
-        localDataMap = Maps.newHashMap();
-        cloudAddons = Lists.newArrayList();
-        registeredAddons = Lists.newArrayList();
-        rawAddons = Lists.newArrayList();
-        loadedAddons = Lists.newArrayList();
+        tempMap = new ConcurrentHashMap<>();
+        localDataMap = new ConcurrentHashMap<>();
+        cloudAddons = new CopyOnWriteArrayList<>();
+        registeredAddons = new CopyOnWriteArrayList<>();
+        rawAddons = new CopyOnWriteArrayList<>();
+        loadedAddons = new CopyOnWriteArrayList<>();
         folder = new File(plugin.getDataFolder() + File.separator + "Addons");
 
         addonFile = new YamlFile(plugin.getDataFolder(), "AddonConfig.yml") {
@@ -251,9 +252,9 @@ public class AddonManager {
     }
 
     public void downloadViaName(String name, String url, Runnable runnable) {
-        CompletableFuture.runAsync(() -> {
+        Scheduler.runAsync(() -> {
             try {
-                download(url, name, file -> PluginUtilities.getScheduler().runTask(() -> {
+                download(url, name, file -> Scheduler.runGlobal(() -> {
                     loadAddon(file);
                     initialize();
                     runnable.run();
@@ -263,7 +264,11 @@ public class AddonManager {
                     final File file = new File(folder.getAbsolutePath() + "/" + name);
                     file.delete();
                     FileUtils.copyURLToFile(new URL(url), file);
-                    runnable.run();
+                    Scheduler.runGlobal(() -> {
+                        loadAddon(file);
+                        initialize();
+                        runnable.run();
+                    });
                 } catch (IOException ex) {
                     ex.printStackTrace();
                 }
@@ -272,9 +277,9 @@ public class AddonManager {
     }
 
     public void downloadAddon(File original, String url, Runnable runnable) {
-        CompletableFuture.runAsync(() -> {
+        Scheduler.runAsync(() -> {
             try {
-                download(url, original.getName(), file -> PluginUtilities.getScheduler().runTask(() -> {
+                download(url, original.getName(), file -> Scheduler.runGlobal(() -> {
                     loadAddon(file);
                     initialize();
                     runnable.run();
@@ -284,7 +289,7 @@ public class AddonManager {
                     final File file = new File(folder.getAbsolutePath() + "/" + original.getName());
                     original.delete();
                     FileUtils.copyURLToFile(new URL(url), file);
-                    PluginUtilities.getScheduler().runTask(() -> {
+                    Scheduler.runGlobal(() -> {
                         loadAddon(file);
                         initialize();
                         runnable.run();
@@ -396,7 +401,7 @@ public class AddonManager {
     }
 
     public void fetchAddons(Consumer<List<AddonCloudData>> consumer) {
-        WebConnector.getInputStreamString("https://bsdevelopment.org/api/addons/list/SimplePets", result -> {
+        Utilities.getInputStreamString("https://bsdevelopment.org/api/addons/list/SimplePets", result -> {
             List<AddonCloudData> addons = Lists.newArrayList();
 
             JsonArray array = Json.parse(result).asArray();

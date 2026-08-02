@@ -7,7 +7,6 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.entity.Pose;
 import net.minecraft.world.phys.Vec3;
 import org.bsdevelopment.nbt.StorageTagCompound;
-import org.bsdevelopment.pluginutils.PluginUtilities;
 import org.bsdevelopment.pluginutils.libs.json.JsonObject;
 import org.bsdevelopment.pluginutils.utilities.MathUtil;
 import org.bsdevelopment.pluginutils.version.VersionLimit;
@@ -19,6 +18,7 @@ import simplepets.brainsynder.api.wrappers.WardenAnger;
 import simplepets.brainsynder.nms.EntitySelector;
 import simplepets.brainsynder.nms.entity.EntityPetOverride;
 import simplepets.brainsynder.nms.utils.PetDataAccess;
+import simplepets.brainsynder.utils.Scheduler;
 
 /**
  * NMS: {@link net.minecraft.world.entity.monster.warden.Warden}
@@ -33,7 +33,7 @@ public class EntityWardenPet extends EntityPetOverride implements IEntityWardenP
         super(EntitySelector.WARDEN, type, user);
         if (ConfigOption.PET_TOGGLES_WARDEN_ANIMATIONS.get()) {
             this.setPose(Pose.EMERGING);
-            PluginUtilities.getScheduler().runTaskLater(() -> this.setPose(Pose.STANDING), 135);
+            Scheduler.runEntityLater(getBukkitEntity(), () -> this.setPose(Pose.STANDING), 135);
         }
     }
 
@@ -123,6 +123,6 @@ public class EntityWardenPet extends EntityPetOverride implements IEntityWardenP
         }
 
         this.setPose(Pose.DIGGING);
-        PluginUtilities.getScheduler().runTaskLater(() -> super.remove(entity_removalreason), 100);
+        Scheduler.runEntityLater(getBukkitEntity(), () -> super.remove(entity_removalreason), 100);
     }
 }

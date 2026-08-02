@@ -12,15 +12,15 @@ import simplepets.brainsynder.api.user.PetUser;
 import simplepets.brainsynder.debug.DebugLevel;
 
 import java.io.File;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public abstract class CustomInventory extends JsonFile {
     private int size = 0;
     private String title;
     private boolean enabled = true;
-    protected Map<String, Integer> pageSave = new HashMap<>();
-    private final Map<Integer, Item> slots = new HashMap<>();
+    protected Map<String, Integer> pageSave = new ConcurrentHashMap<>();
+    private final Map<Integer, Item> slots = new ConcurrentHashMap<>();
 
     public CustomInventory(File file) {
         super(file);

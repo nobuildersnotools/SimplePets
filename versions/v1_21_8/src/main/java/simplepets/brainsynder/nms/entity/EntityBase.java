@@ -41,7 +41,7 @@ public class EntityBase extends Mob {
 
     protected EntityBase(EntityType<? extends Mob> entitytypes, Level world) {
         super(entitytypes, world);
-        entityType = getEntityType(entitytypes);
+        entityType = entitytypes;
         originalEntityType = entitytypes;
         getBukkitEntity().remove();
     }
@@ -50,7 +50,7 @@ public class EntityBase extends Mob {
         super(entitytypes, ((CraftWorld) user.getPlayer().getLocation().getWorld()).getHandle());
         this.user = user;
         this.petType = type;
-        entityType = getEntityType(entitytypes);
+        entityType = entitytypes;
         originalEntityType = entitytypes;
     }
 

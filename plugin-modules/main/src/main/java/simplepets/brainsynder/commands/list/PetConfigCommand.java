@@ -1,6 +1,5 @@
 package simplepets.brainsynder.commands.list;
 
-import org.bsdevelopment.pluginutils.PluginUtilities;
 import org.bsdevelopment.pluginutils.command.CommandBuilder;
 import org.bsdevelopment.pluginutils.command.arguments.CustomArgument;
 import org.bsdevelopment.pluginutils.command.arguments.StringArgument;
@@ -8,6 +7,7 @@ import org.bsdevelopment.pluginutils.command.arguments.suggestions.ArgumentSugge
 import org.bsdevelopment.pluginutils.command.exception.ArgumentParseException;
 import org.bsdevelopment.pluginutils.files.JsonFile;
 import org.bsdevelopment.pluginutils.libs.json.JsonValue;
+import org.bukkit.command.CommandSender;
 import simplepets.brainsynder.PetCore;
 import simplepets.brainsynder.api.pet.IPetConfig;
 import simplepets.brainsynder.api.pet.PetType;
@@ -16,6 +16,7 @@ import simplepets.brainsynder.api.plugin.config.MessageOption;
 import simplepets.brainsynder.commands.PetCommandClass;
 import simplepets.brainsynder.impl.PetConfiguration;
 import simplepets.brainsynder.managers.InventoryManager;
+import simplepets.brainsynder.utils.Scheduler;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -87,7 +88,7 @@ public class PetConfigCommand implements PetCommandClass {
                             });
                             return list;
                         })))
-                .executes((sender, args) -> {
+                .executes((sender, args) -> Scheduler.runGlobal(() -> {
                     PetType type = args.get("type");
                     String key = args.get("key");
                     String newValue = args.get("value");
@@ -97,7 +98,7 @@ public class PetConfigCommand implements PetCommandClass {
                         JsonFile jsonFile = config.getJSON();
 
                         if (!jsonFile.hasKey(key)) {
-                            sender.sendMessage(PetCore.getInstance().getMessageFile().getTranslation(MessageOption.CONFIG_UNKNOWN_KEY)
+                            message(sender, PetCore.getInstance().getMessageFile().getTranslation(MessageOption.CONFIG_UNKNOWN_KEY)
                                     .replace("{key}", key));
                             return;
                         }
@@ -114,7 +115,7 @@ public class PetConfigCommand implements PetCommandClass {
                                 jsonFile.set(key, Boolean.parseBoolean(newValue));
                                 updated = true;
                             } else {
-                                sender.sendMessage(PetCore.getInstance().getMessageFile().getTranslation(MessageOption.CONFIG_INVALID_BOOLEAN)
+                                message(sender, PetCore.getInstance().getMessageFile().getTranslation(MessageOption.CONFIG_INVALID_BOOLEAN)
                                         .replace("{key}", key).replace("{value}", newValue));
                                 return;
                             }
@@ -124,7 +125,7 @@ public class PetConfigCommand implements PetCommandClass {
                                     jsonFile.set(key, Double.parseDouble(newValue));
                                     updated = true;
                                 } catch (NumberFormatException e) {
-                                    sender.sendMessage(PetCore.getInstance().getMessageFile().getTranslation(MessageOption.CONFIG_INVALID_DOUBLE)
+                                    message(sender, PetCore.getInstance().getMessageFile().getTranslation(MessageOption.CONFIG_INVALID_DOUBLE)
                                             .replace("{key}", key).replace("{value}", newValue));
                                     return;
                                 }
@@ -133,7 +134,7 @@ public class PetConfigCommand implements PetCommandClass {
                                     jsonFile.set(key, Integer.parseInt(newValue));
                                     updated = true;
                                 } catch (NumberFormatException e) {
-                                    sender.sendMessage(PetCore.getInstance().getMessageFile().getTranslation(MessageOption.CONFIG_INVALID_INT)
+                                    message(sender, PetCore.getInstance().getMessageFile().getTranslation(MessageOption.CONFIG_INVALID_INT)
                                             .replace("{key}", key).replace("{value}", newValue));
                                     return;
                                 }
@@ -146,10 +147,11 @@ public class PetConfigCommand implements PetCommandClass {
                         if (updated) {
                             jsonFile.save();
                             boolean finalReset = reset;
-                            PluginUtilities.getScheduler().runTaskLater(() -> {
+                            Scheduler.runGlobalLater(() -> {
                                 ((PetConfiguration) PetCore.getInstance().getPetConfigManager()).reset();
                                 InventoryManager.SELECTION.reloadAvailableTypes();
 
+                                Scheduler.run(sender, () -> {
                                 if (finalReset) {
                                     sender.sendMessage(PetCore.getInstance().getMessageFile().getTranslation(MessageOption.CONFIG_VALUE_RESET)
                                             .replace("{key}", key)
@@ -161,12 +163,17 @@ public class PetConfigCommand implements PetCommandClass {
                                             .replace("{value}", newValue)
                                             .replace("{type}", type.getName()));
                                 }
+                                });
                             }, 5);
                         } else {
-                            sender.sendMessage(PetCore.getInstance().getMessageFile().getTranslation(MessageOption.CONFIG_UNABLE_TO_UPDATE)
+                            message(sender, PetCore.getInstance().getMessageFile().getTranslation(MessageOption.CONFIG_UNABLE_TO_UPDATE)
                                     .replace("{key}", key).replace("{value}", newValue));
                         }
                     });
-                });
+                }));
+    }
+
+    private void message(CommandSender sender, String message) {
+        Scheduler.run(sender, () -> sender.sendMessage(message));
     }
 }

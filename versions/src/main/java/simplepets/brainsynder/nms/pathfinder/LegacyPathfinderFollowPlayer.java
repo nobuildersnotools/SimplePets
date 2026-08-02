@@ -18,6 +18,7 @@ import simplepets.brainsynder.api.plugin.config.ConfigOption;
 import simplepets.brainsynder.api.user.PetUser;
 import simplepets.brainsynder.nms.entity.EntityPet;
 import simplepets.brainsynder.nms.helper.VersionHelper;
+import simplepets.brainsynder.utils.Scheduler;
 
 import java.util.EnumSet;
 
@@ -67,11 +68,15 @@ public class LegacyPathfinderFollowPlayer extends Goal {
     public boolean canUse() {
         if (user == null) {
             this.user = entity.getPetUser();
-            this.player = VersionHelper.<ServerPlayer>getEntityHandle(user.getPlayer());
         }
         if (user == null) return false;
         if (user.getPlayer() == null) return false;
         if (entity == null) return false;
+        if (!Scheduler.isOwnedByCurrentRegion(user.getPlayer())) {
+            entity.teleportToOwner();
+            return false;
+        }
+        this.player = VersionHelper.getEntityHandle(user.getPlayer());
 
         if (!user.getPlayer().isOnline()) return false;
         if (user.getPlayer().isInsideVehicle()
@@ -94,6 +99,7 @@ public class LegacyPathfinderFollowPlayer extends Goal {
 
     @Override
     public boolean canContinueToUse() {
+        if (!Scheduler.isOwnedByCurrentRegion(user.getPlayer())) return false;
         if (navigation.isDone()) return false; // Translation: navigation.isIdle()
         // Translation: Entity.squaredDistanceTo (Entity)
         double distance = entity.distanceToSqr(player);
@@ -102,6 +108,10 @@ public class LegacyPathfinderFollowPlayer extends Goal {
 
     @Override
     public void tick() {
+        if (!Scheduler.isOwnedByCurrentRegion(user.getPlayer())) {
+            entity.teleportToOwner();
+            return;
+        }
         // Translation: Entity.squaredDistanceTo (Entity)
         if (entity.distanceToSqr(this.player) >= 155.0D) { // Will teleport the pet if the player is more then 155 blocks away
             // Translation: Entity.distanceTo (Entity)

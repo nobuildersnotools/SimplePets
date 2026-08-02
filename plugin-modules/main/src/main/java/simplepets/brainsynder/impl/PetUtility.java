@@ -11,6 +11,7 @@ import simplepets.brainsynder.api.plugin.SimplePets;
 import simplepets.brainsynder.api.plugin.config.ConfigOption;
 import simplepets.brainsynder.api.plugin.utils.IPetUtilities;
 import simplepets.brainsynder.api.user.PetUser;
+import simplepets.brainsynder.utils.Scheduler;
 
 import java.util.List;
 
@@ -24,10 +25,17 @@ public class PetUtility implements IPetUtilities {
             List<String> commands = config.getCommands().getOrDefault(reason, Lists.newArrayList());
             IEntityPet pet = owner.getPetEntity(type).orElse(null);
 
-            commands.forEach(command -> Bukkit.dispatchCommand(
-                    Bukkit.getConsoleSender(),
-                    handleCommand(owner, pet, pet != null ? null : location, command)
-            ));
+            Runnable handleCommands = () -> commands.forEach(command -> {
+                    String handledCommand = handleCommand(owner, pet, pet != null ? null : location, command);
+                    if (handledCommand != null) {
+                        Scheduler.runGlobal(() -> Bukkit.dispatchCommand(Bukkit.getConsoleSender(), handledCommand));
+                    }
+                });
+            if (pet != null && !Scheduler.isOwnedByCurrentRegion(pet.getEntity())) {
+                Scheduler.runEntity(pet.getEntity(), handleCommands);
+            } else {
+                handleCommands.run();
+            }
         });
     }
 
@@ -78,8 +86,7 @@ public class PetUtility implements IPetUtilities {
     public String handlePlaceholders(PetUser owner, IEntityPet entity, Location petLoc, String text) {
         if (text == null || owner == null) return text;
 
-        var player = owner.getPlayer();
-        Location ownerLoc = player != null ? player.getLocation() : null;
+        Location ownerLoc = owner.getUserLocation().orElse(null);
 
         if (petLoc == null && entity != null && entity.getEntity() != null) petLoc = entity.getEntity().getLocation();
 

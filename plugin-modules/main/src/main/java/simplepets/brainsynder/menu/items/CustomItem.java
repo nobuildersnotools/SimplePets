@@ -11,6 +11,7 @@ import simplepets.brainsynder.api.pet.PetType;
 import simplepets.brainsynder.api.plugin.SimplePets;
 import simplepets.brainsynder.api.user.PetUser;
 import simplepets.brainsynder.debug.DebugLevel;
+import simplepets.brainsynder.utils.Scheduler;
 
 import java.io.File;
 
@@ -51,20 +52,16 @@ public abstract class CustomItem extends Item {
 
         if (target.equals("ALL")) {
             owner.getPetEntities().forEach(entityPet -> {
-                String loc;
-
-                if (owner.hasPets()) {
+                Scheduler.runEntity(entityPet.getEntity(), () -> {
                     Location location = entityPet.getEntity().getLocation();
-                    loc = location.getBlockX() + " " + location.getBlockY() + " " + location.getBlockZ();
-                } else {
-                    loc = "";
-                }
+                    String loc = location.getBlockX() + " " + location.getBlockY() + " " + location.getBlockZ();
 
-                array.forEach(jsonValue -> dispatch(jsonValue.asString()
-                    .replace("{location}", loc)
-                    .replace("{name}", owner.getPlayer().getName())
-                    .replace("{type}", entityPet.getPetType().getName())
-                ));
+                    array.forEach(jsonValue -> dispatch(jsonValue.asString()
+                        .replace("{location}", loc)
+                        .replace("{name}", owner.getOwnerName())
+                        .replace("{type}", entityPet.getPetType().getName())
+                    ));
+                });
             });
             return;
         }
@@ -76,21 +73,23 @@ public abstract class CustomItem extends Item {
 
             array.forEach(jsonValue -> dispatch(jsonValue.asString()
                 .replace("{location}", loc)
-                .replace("{name}", owner.getPlayer().getName())
+                .replace("{name}", owner.getOwnerName())
             ));
             return;
         }
 
         PetType.getPetType(target).ifPresent(type -> {
             owner.getPetEntity(type).ifPresent(entityPet -> {
-                Location location = entityPet.getEntity().getLocation();
-                String loc = location.getBlockX() + " " + location.getBlockY() + " " + location.getBlockZ();
+                Scheduler.runEntity(entityPet.getEntity(), () -> {
+                    Location location = entityPet.getEntity().getLocation();
+                    String loc = location.getBlockX() + " " + location.getBlockY() + " " + location.getBlockZ();
 
-                array.forEach(jsonValue -> dispatch(jsonValue.asString()
-                    .replace("{location}", loc)
-                    .replace("{name}", owner.getPlayer().getName())
-                    .replace("{type}", entityPet.getPetType().getName())
-                ));
+                    array.forEach(jsonValue -> dispatch(jsonValue.asString()
+                        .replace("{location}", loc)
+                        .replace("{name}", owner.getOwnerName())
+                        .replace("{type}", entityPet.getPetType().getName())
+                    ));
+                });
             });
         });
     }
@@ -105,6 +104,7 @@ public abstract class CustomItem extends Item {
         command = command.trim();
         if (command.startsWith("/")) command = command.substring(1);
         if (command.isEmpty()) return;
-        Bukkit.getServer().dispatchCommand(Bukkit.getConsoleSender(), command);
+        String finalCommand = command;
+        Scheduler.runGlobal(() -> Bukkit.getServer().dispatchCommand(Bukkit.getConsoleSender(), finalCommand));
     }
 }

@@ -16,6 +16,7 @@ import simplepets.brainsynder.api.plugin.SimplePets;
 import simplepets.brainsynder.api.plugin.config.ConfigOption;
 import simplepets.brainsynder.api.user.PetUser;
 import simplepets.brainsynder.utils.Utilities;
+import simplepets.brainsynder.utils.Scheduler;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -144,6 +145,7 @@ public interface PetCommandClass extends CommandClass {
                 if (user.isEmpty()) return suggestions;
 
                 user.get().getPetEntity(type).ifPresent(entityPet -> {
+                    if (!Scheduler.isOwnedByCurrentRegion(entityPet.getEntity())) return;
                     String compoundStr = entityPet.asCompound().toString();
                     if (!compoundStr.equals("{}")) suggestions.add(compoundStr);
                 });

@@ -12,6 +12,7 @@ import simplepets.brainsynder.api.plugin.config.MessageOption;
 import simplepets.brainsynder.api.user.PetUser;
 import simplepets.brainsynder.commands.PetCommandClass;
 import simplepets.brainsynder.utils.RenameType;
+import simplepets.brainsynder.utils.Scheduler;
 
 public class RenameCommand implements PetCommandClass {
 
@@ -51,7 +52,7 @@ public class RenameCommand implements PetCommandClass {
                             PetType type = args.get("type");
                             RenameType rename = RenameType.getType(ConfigOption.RENAME_TYPE.get(), RenameType.ANVIL);
 
-                            SimplePets.getUserManager().getPetUser(target).ifPresent(user -> {
+                            Scheduler.runEntity(target, () -> SimplePets.getUserManager().getPetUser(target).ifPresent(user -> {
                                 if (args.has("name")) {
                                     user.setPetName(args.get("name"), type);
                                     return;
@@ -62,7 +63,7 @@ public class RenameCommand implements PetCommandClass {
                                 } else {
                                     dispatch(rename, user, type);
                                 }
-                            });
+                            }));
                         })
                 );
     }

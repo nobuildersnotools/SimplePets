@@ -1,7 +1,6 @@
 package simplepets.brainsynder.menu.items.list;
 
 import org.bsdevelopment.nbt.StorageTagCompound;
-import org.bsdevelopment.pluginutils.PluginUtilities;
 import org.bsdevelopment.pluginutils.inventory.ItemBuilder;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -16,6 +15,7 @@ import simplepets.brainsynder.api.plugin.config.MessageOption;
 import simplepets.brainsynder.api.user.PetUser;
 import simplepets.brainsynder.managers.InventoryManager;
 import simplepets.brainsynder.menu.inventory.PetSelectorMenu;
+import simplepets.brainsynder.utils.Scheduler;
 import simplepets.brainsynder.utils.Utilities;
 
 import java.io.File;
@@ -43,36 +43,21 @@ public class SavePet extends Item {
         if (!masterUser.hasPets()) return;
 
         if (pet != null) {
-            if (canSavePet(masterUser, pet)) {
-                StorageTagCompound compound = pet.asCompound();
-                if (pet.getPetType() == PetType.ARMOR_STAND) compound.setBoolean("restricted", true);
-                masterUser.addPetSave(compound);
-            }
-            PluginUtilities.getScheduler().runTaskLater(() -> inventory.open(masterUser), 1);
+            savePet(masterUser, inventory, pet);
             return;
         }
 
         if (masterUser.getPetEntities().size() == 1) {
             masterUser.getPetEntities().stream().findFirst().ifPresent(iEntityPet -> {
-                if (canSavePet(masterUser, iEntityPet)) {
-                    StorageTagCompound compound = iEntityPet.asCompound();
-                    if (iEntityPet.getPetType() == PetType.ARMOR_STAND) compound.setBoolean("restricted", true);
-                    masterUser.addPetSave(compound);
-                }
+                savePet(masterUser, inventory, iEntityPet);
             });
-            PluginUtilities.getScheduler().runTaskLater(() -> inventory.open(masterUser), 1);
             return;
         }
         PetSelectorMenu menu = InventoryManager.SELECTOR;
         menu.setTask(masterUser.getPlayer().getName(), (user, type) -> {
             user.getPetEntity(type).ifPresent(entity -> {
-                if (canSavePet(user, entity)) {
-                    StorageTagCompound compound = entity.asCompound();
-                    if (type == PetType.ARMOR_STAND) compound.setBoolean("restricted", true);
-                    user.addPetSave(compound);
-                }
+                savePet(user, inventory, entity);
             });
-            PluginUtilities.getScheduler().runTaskLater(() -> inventory.open(user), 1);
         });
         menu.open(masterUser, 1, inventory.getTitle());
     }
@@ -101,5 +86,21 @@ public class SavePet extends Item {
         }
         player.sendMessage(PetCore.getInstance().getMessageFile().getTranslation(MessageOption.PET_SAVES_LIMIT_REACHED_TYPE).replace("{type}", entityPet.getPetType().getName()));
         return false;
+    }
+
+    private void savePet(PetUser user, CustomInventory inventory, IEntityPet entityPet) {
+        if (!canSavePet(user, entityPet)) {
+            Scheduler.runEntityLater(user.getPlayer(), () -> inventory.open(user), 1L);
+            return;
+        }
+
+        Scheduler.callEntity(entityPet.getEntity(), () -> entityPet.asCompound())
+            .whenComplete((compound, throwable) -> Scheduler.runEntity(user.getPlayer(), () -> {
+                if (throwable == null && compound != null) {
+                    if (entityPet.getPetType() == PetType.ARMOR_STAND) compound.setBoolean("restricted", true);
+                    user.addPetSave(compound);
+                }
+                inventory.open(user);
+            }));
     }
 }

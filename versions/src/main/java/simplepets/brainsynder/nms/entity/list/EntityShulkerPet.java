@@ -22,7 +22,6 @@ import org.bukkit.event.entity.CreatureSpawnEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import simplepets.brainsynder.api.entity.hostile.IEntityShulkerPet;
 import simplepets.brainsynder.api.entity.misc.IEntityControllerPet;
-import simplepets.brainsynder.api.other.ParticleHandler;
 import simplepets.brainsynder.api.pet.CommandReason;
 import simplepets.brainsynder.api.pet.PetType;
 import simplepets.brainsynder.api.plugin.SimplePets;
@@ -32,6 +31,7 @@ import simplepets.brainsynder.nms.EntitySelector;
 import simplepets.brainsynder.nms.entity.special.EntityControllerPet;
 import simplepets.brainsynder.nms.entity.special.EntityGhostStand;
 import simplepets.brainsynder.nms.helper.VersionHelper;
+import simplepets.brainsynder.utils.Scheduler;
 
 import java.util.*;
 import java.util.function.Function;
@@ -97,7 +97,7 @@ public class EntityShulkerPet extends Shulker implements IEntityShulkerPet {
 
     @Override
     public void travel(Vec3 vec3d) {
-        pet.travel(vec3d);
+        if (Scheduler.isOwnedByCurrentRegion(pet.getBukkitEntity())) pet.travel(vec3d);
     }
 
     @Override
@@ -185,8 +185,12 @@ public class EntityShulkerPet extends Shulker implements IEntityShulkerPet {
     public void tick() {
         super.tick();
         Entity bukkitEntity = this.getBukkitEntity();
-        if ((this.pet == null)
-                || (pet.getBukkitEntity().isDead())
+        if (this.pet == null) {
+            VersionHelper.killEntity(this, (ServerLevel) level());
+            return;
+        }
+        if (!Scheduler.isOwnedByCurrentRegion(pet.getBukkitEntity())) return;
+        if ((pet.getBukkitEntity().isDead())
                 || (!pet.getBukkitEntity().isValid())) {
             VersionHelper.killEntity(this, (ServerLevel) level());
             return;
@@ -194,11 +198,14 @@ public class EntityShulkerPet extends Shulker implements IEntityShulkerPet {
 
         // Handles all other Pet Tasks...
         if (user == null
-                || user.getPlayer() == null
-                || !user.getPlayer().isOnline()
-                || !user.hasPet(PetType.SHULKER)) {
+                || user.getPlayer() == null) {
             if (bukkitEntity != null)
                 bukkitEntity.remove();
+            return;
+        }
+        if (!Scheduler.isOwnedByCurrentRegion(user.getPlayer())) return;
+        if (!user.getPlayer().isOnline() || !user.hasPet(PetType.SHULKER)) {
+            if (bukkitEntity != null) bukkitEntity.remove();
             return;
         }
         if ((!this.closed) && (getRawPeekAmount() < 100)) setRawPeekAmount(100);
@@ -242,12 +249,7 @@ public class EntityShulkerPet extends Shulker implements IEntityShulkerPet {
 
     @Override
     public void teleportToOwner() {
-        user.getUserLocation().ifPresent(location -> {
-            setPos(location.getX(), location.getY(), location.getZ());
-            pet.setPos(location.getX(), location.getY(), location.getZ());
-            SimplePets.getPetUtilities().runPetCommands(CommandReason.TELEPORT, user, getPetType());
-            SimplePets.getParticleHandler().sendParticle(ParticleHandler.Reason.TELEPORT, user.getPlayer(), location);
-        });
+        pet.teleportToOwner();
     }
 
     @Override

@@ -10,6 +10,7 @@ import simplepets.brainsynder.api.plugin.SimplePets;
 import simplepets.brainsynder.api.plugin.config.ConfigOption;
 import simplepets.brainsynder.api.plugin.config.MessageOption;
 import simplepets.brainsynder.api.user.PetUser;
+import simplepets.brainsynder.utils.Scheduler;
 
 import java.util.Map;
 import java.util.UUID;
@@ -29,7 +30,7 @@ public class RenameDialog {
             Player player = Bukkit.getPlayer(uuid);
             if (player == null) return;
 
-            SimplePets.getUserManager().getPetUser(player).ifPresent(user -> {
+            Scheduler.runEntity(player, () -> SimplePets.getUserManager().getPetUser(player).ifPresent(user -> {
                 String name = payload.textValue("name");
                 if (name != null && name.isBlank()) name = null;
                 if (name != null && name.equalsIgnoreCase("reset")) name = null;
@@ -38,7 +39,7 @@ public class RenameDialog {
                 Bukkit.getPluginManager().callEvent(renameEvent);
 
                 if (!renameEvent.isCancelled()) user.setPetName(renameEvent.getName(), type);
-            });
+            }));
         });
     }
 

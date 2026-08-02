@@ -28,6 +28,7 @@ import simplepets.brainsynder.utils.Utilities;
 
 import java.io.File;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class SavesMenu extends CustomInventory {
     private Map<String, ListPager<PetUser.Entry<PetType, StorageTagCompound>>> pagerMap;
@@ -39,8 +40,8 @@ public class SavesMenu extends CustomInventory {
 
     @Override
     public void loadDefaults() {
-        pagerMap = new HashMap<>();
-        itemMap = new HashMap<>();
+        pagerMap = new ConcurrentHashMap<>();
+        itemMap = new ConcurrentHashMap<>();
 
         defaults.add("size", 54);
         setDefault("title_comment", "The title of the GUI can support regular color codes '&c' and HEX color codes '&#FFFFFF'");
@@ -139,7 +140,7 @@ public class SavesMenu extends CustomInventory {
                 inv.setItem(slot, item.getItemBuilder().build());
         });
 
-        Map<StorageTagCompound, PetUser.Entry<PetType, ItemStack>> storageMap = itemMap.getOrDefault(player.getName(), new HashMap<>());
+        Map<StorageTagCompound, PetUser.Entry<PetType, ItemStack>> storageMap = itemMap.getOrDefault(player.getName(), new ConcurrentHashMap<>());
         if (!pages.isEmpty()) {
             pages.getPage(page).forEach(entry -> {
                 PetType type = entry.getKey();

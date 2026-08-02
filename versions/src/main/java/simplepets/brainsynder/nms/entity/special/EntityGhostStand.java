@@ -22,6 +22,7 @@ import org.bukkit.event.entity.CreatureSpawnEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import simplepets.brainsynder.nms.EntitySelector;
 import simplepets.brainsynder.nms.helper.VersionHelper;
+import simplepets.brainsynder.utils.Scheduler;
 
 public class EntityGhostStand extends ArmorStand {
     private EntityControllerPet controllerPet;
@@ -56,8 +57,12 @@ public class EntityGhostStand extends ArmorStand {
     @Override
     public void tick() {
         super.tick();
-        if ((this.controllerPet == null)
-                || (this.controllerPet.getEntity().isDead())
+        if (this.controllerPet == null) {
+            VersionHelper.killEntity(this, (ServerLevel) level());
+            return;
+        }
+        if (!Scheduler.isOwnedByCurrentRegion(controllerPet.getBukkitEntity())) return;
+        if ((this.controllerPet.getEntity().isDead())
                 || (!this.controllerPet.getEntity().isValid())) {
             controllerPet = null;
             VersionHelper.killEntity(this, (ServerLevel) level());

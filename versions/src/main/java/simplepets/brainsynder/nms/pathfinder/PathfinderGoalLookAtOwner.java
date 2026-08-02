@@ -8,6 +8,7 @@ import simplepets.brainsynder.api.user.PetUser;
 import simplepets.brainsynder.nms.entity.EntityPet;
 import simplepets.brainsynder.nms.helper.VersionHelper;
 import simplepets.brainsynder.nms.utils.EntityUtils;
+import simplepets.brainsynder.utils.Scheduler;
 
 import java.util.EnumSet;
 
@@ -34,6 +35,8 @@ public class PathfinderGoalLookAtOwner extends Goal {
             this.player = user.getPlayer();
         }
 
+        if (!Scheduler.isOwnedByCurrentRegion(player)) return false;
+
         if (EntityUtils.getRandom().nextFloat() >= this.chance) {
             return false;
         } else {
@@ -44,6 +47,7 @@ public class PathfinderGoalLookAtOwner extends Goal {
     // Translation: shouldContinue
     @Override
     public boolean canContinueToUse() {
+        if (!Scheduler.isOwnedByCurrentRegion(player)) return false;
         if (this.player.isDead()) {
             return false;
         } else if (this.entityPet.distanceToSqr(VersionHelper.<ServerPlayer>getEntityHandle(player)) > (double)(this.range * this.range)) {
@@ -62,6 +66,7 @@ public class PathfinderGoalLookAtOwner extends Goal {
     // Translation: tick
     @Override
     public void tick() {
+        if (!Scheduler.isOwnedByCurrentRegion(player)) return;
         Location location = entityPet.getBukkitEntity().getLocation();
         location.add(location.getDirection().multiply(4.0));
         if (!user.isPetHat(entityPet.getPetType()))

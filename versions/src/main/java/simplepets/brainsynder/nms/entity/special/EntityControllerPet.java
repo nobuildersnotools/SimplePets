@@ -24,6 +24,7 @@ import simplepets.brainsynder.nms.entity.list.EntityArmorStandPet;
 import simplepets.brainsynder.nms.entity.list.EntityShulkerPet;
 import simplepets.brainsynder.nms.entity.list.EntityZombiePet;
 import simplepets.brainsynder.nms.helper.VersionHelper;
+import simplepets.brainsynder.utils.Scheduler;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -101,6 +102,13 @@ public class EntityControllerPet extends EntityZombiePet implements IEntityContr
         if (!isSilent()) this.setSilent(true);
         if ((!isBaby()) && (getPetType() == PetType.SHULKER)) setBaby((getPetType() == PetType.SHULKER));
         Player p = getPetUser().getPlayer();
+        if (p == null) return;
+        if (!Scheduler.isOwnedByCurrentRegion(p)) {
+            teleportToOwner();
+            return;
+        }
+        if ((displayEntity != null && !Scheduler.isOwnedByCurrentRegion(displayEntity))
+                || (displayRider != null && !Scheduler.isOwnedByCurrentRegion(displayRider))) return;
         if ((this.displayEntity == null)
                 || (this.displayEntity.isDead())
                 || (!this.displayEntity.isValid())) {
@@ -223,12 +231,7 @@ public class EntityControllerPet extends EntityZombiePet implements IEntityContr
             }
 
             VersionHelper.moveTo(displayEntity, loc.getX(), loc.getY(), loc.getZ(), loc.getYaw(), loc.getPitch());
-            loc.getWorld().getNearbyEntities(loc, 100, 100, 100).forEach(entity -> {
-                if (entity instanceof Player player) {
-                    ClientboundTeleportEntityPacket packet = VersionHelper.getTeleportPacket(displayEntity);
-                    VersionHelper.<ServerPlayer>getEntityHandle(player).connection.send(packet);
-                }
-            });
+            sendTeleportPacket(displayEntity, loc);
             return;
         }
 
@@ -246,9 +249,19 @@ public class EntityControllerPet extends EntityZombiePet implements IEntityContr
         }
 
         VersionHelper.moveTo(displayEntity, loc.getX(), loc.getY(), loc.getZ(), loc.getYaw(), loc.getPitch());
-        loc.getWorld().getNearbyEntities(loc, 100, 100, 100).forEach(entity -> {
+        sendTeleportPacket(displayEntity, loc);
+    }
+
+    private void sendTeleportPacket(net.minecraft.world.entity.Entity displayEntity, Location location) {
+        ClientboundTeleportEntityPacket packet = VersionHelper.getTeleportPacket(displayEntity);
+        if (Scheduler.forEachTrackedPlayer(this.displayEntity, player ->
+                Scheduler.runEntity(player, () -> VersionHelper.<ServerPlayer>getEntityHandle(player).connection.send(packet)))) {
+            return;
+        }
+        if (Scheduler.isFolia()) return;
+
+        location.getWorld().getNearbyEntities(location, 100, 100, 100).forEach(entity -> {
             if (entity instanceof Player player) {
-                ClientboundTeleportEntityPacket packet = VersionHelper.getTeleportPacket(displayEntity);
                 VersionHelper.<ServerPlayer>getEntityHandle(player).connection.send(packet);
             }
         });

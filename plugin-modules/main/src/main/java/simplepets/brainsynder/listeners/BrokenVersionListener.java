@@ -1,10 +1,10 @@
 package simplepets.brainsynder.listeners;
 
-import org.bsdevelopment.pluginutils.PluginUtilities;
 import org.bsdevelopment.pluginutils.chat.TellrawMessage;
 import org.bsdevelopment.pluginutils.chat.decoration.NamedTextColor;
 import org.bsdevelopment.pluginutils.version.ServerVersion;
 import org.bukkit.entity.Player;
+import simplepets.brainsynder.utils.Scheduler;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
@@ -17,7 +17,7 @@ public class BrokenVersionListener implements Listener {
     public void onJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
         if (!player.isOp()) return;
-        PluginUtilities.getScheduler().runTaskLater(() -> {
+        Scheduler.runEntityLater(player, () -> {
             String version = ServerVersion.getVersion().getVersionName().replace("v", "").replace("_", ".");
             player.sendMessage("§4[§cSimplePets§4] §7SimplePets has encountered an error, " +
                 "We seems to be missing support for your version §4(§c" + version + "§4)");

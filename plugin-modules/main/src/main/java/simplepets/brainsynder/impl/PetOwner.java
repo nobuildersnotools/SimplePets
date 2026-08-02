@@ -4,9 +4,9 @@ import com.google.common.collect.Lists;
 import org.bsdevelopment.nbt.StorageTagCompound;
 import org.bsdevelopment.nbt.StorageTagList;
 import org.bsdevelopment.nbt.StorageTagString;
-import org.bsdevelopment.pluginutils.PluginUtilities;
 import org.bsdevelopment.pluginutils.storage.optional.BiOptional;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
@@ -26,18 +26,23 @@ import simplepets.brainsynder.api.user.PetUser;
 import simplepets.brainsynder.managers.InventoryManager;
 import simplepets.brainsynder.managers.ParticleManager;
 import simplepets.brainsynder.utils.Utilities;
+import simplepets.brainsynder.utils.Scheduler;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class PetOwner implements PetUser {
 
     private final UUID uuid;
     private final String name;
 
-    private boolean isLoaded = false;
+    private volatile boolean isLoaded = false;
     private long lastPetChangeTimestamp = 0L;
+    private volatile Location lastKnownLocation;
 
     private PetType vehicle = null;
     private final List<PetType> hatPets;
@@ -47,18 +52,22 @@ public class PetOwner implements PetUser {
     private final List<PetType> ownedPets;
     private final Map<PetType, IEntityPet> petMap;
     private final Map<PetType, String> nameMap;
+    private volatile CompletableFuture<Void> petTransition = CompletableFuture.completedFuture(null);
+    private volatile CompletableFuture<Boolean> pendingSave = CompletableFuture.completedFuture(true);
+    private final AtomicBoolean petCaptureRunning = new AtomicBoolean();
 
     public PetOwner(Player player) {
         Objects.requireNonNull(player, "Player can not be null (They Offline?)");
         this.uuid = player.getUniqueId();
         this.name = player.getName();
+        this.lastKnownLocation = player.getLocation().clone();
 
-        respawnPets = new ArrayList<>();
-        savedPetData = new ArrayList<>();
-        hatPets = new ArrayList<>();
-        petMap = new HashMap<>();
-        nameMap = new HashMap<>();
-        ownedPets = new ArrayList<>();
+        respawnPets = new CopyOnWriteArrayList<>();
+        savedPetData = new CopyOnWriteArrayList<>();
+        hatPets = new CopyOnWriteArrayList<>();
+        petMap = new ConcurrentHashMap<>();
+        nameMap = new ConcurrentHashMap<>();
+        ownedPets = new CopyOnWriteArrayList<>();
     }
 
     public PetOwner(String username) {
@@ -66,13 +75,15 @@ public class PetOwner implements PetUser {
     }
 
     public void loadCompound(StorageTagCompound compound) {
-        respawnPets.clear();
-        savedPetData.clear();
-        hatPets.clear();
-        petMap.clear();
-        nameMap.clear();
-        ownedPets.clear();
-        PluginUtilities.getScheduler().runTask(() -> {
+        Player ownerPlayer = getPlayer();
+        if (ownerPlayer == null) return;
+        Scheduler.runEntity(ownerPlayer, () -> {
+                respawnPets.clear();
+                savedPetData.clear();
+                hatPets.clear();
+                petMap.clear();
+                nameMap.clear();
+                ownedPets.clear();
                 if (compound.hasKey("pet_names")) {
                     StorageTagList names = (StorageTagList) compound.getTag("pet_names");
                     names.getTagList().forEach(storageBase -> {
@@ -124,6 +135,7 @@ public class PetOwner implements PetUser {
                 }
 
                 isLoaded = true;
+                petCaptureRunning.set(false);
         });
     }
 
@@ -167,6 +179,14 @@ public class PetOwner implements PetUser {
 
     @Override
     public boolean summonCachedPets() {
+        CompletableFuture<Void> transition = petTransition;
+        if (!transition.isDone()) {
+            Player player = getPlayer();
+            transition.whenComplete((ignored, throwable) -> {
+                if (throwable == null && player != null) Scheduler.runEntity(player, this::summonCachedPets);
+            });
+            return true;
+        }
         if (respawnPets.isEmpty()) return false;
 
         ISpawnUtil spawnUtil = SimplePets.getSpawnUtil();
@@ -206,67 +226,67 @@ public class PetOwner implements PetUser {
 
     @Override
     public void cacheAndRemove() {
-        petMap.forEach((type, entityPet) -> {
-            respawnPets.add(new StorageTagCompound()
-                .setTag("data", entityPet.asCompound())
-                .setString("type", type.getName())
-            );
-        });
-
-        // If the server is shutting down, JUST IN CASE
-        if (!PetCore.getInstance().isEnabled()) {
-            // TBD: We want to block the thread to save everything...
-            PetCore.getInstance().getSqlHandler().sendPlayerDataSync(uuid, name, toCompound());
-            return;
-        }
-
-        updateDatabase().thenAccept(callback -> {
-            // Just remove the pets, the player didn't disconnect
-            petMap.forEach((type, entityPet) -> {
-                if (!hasPet(type)) return;
-                if (isPetHat(type)) setPetHat(type, false);
-                PetRemoveEvent event = new PetRemoveEvent(this, petMap.get(type));
-                Bukkit.getPluginManager().callEvent(event);
-                Utilities.runPetCommands(CommandReason.REVOKE, this, type);
-
-                entityPet.getEntities().forEach(entity -> {
-                    SimplePets.getParticleHandler().sendParticle(ParticleManager.Reason.REMOVE, getPlayer(), entity.getLocation());
-                    entity.remove();
-                });
-            });
-
-            petMap.clear();
-        });
+        captureAndSave(false);
     }
 
     /**
      * Will save all the pets currently spawned, upload them to the database and then remove them
      */
     public void markForRespawn() {
-        petMap.forEach((type, entityPet) -> {
-            respawnPets.add(new StorageTagCompound()
-                .setTag("data", entityPet.asCompound())
-                .setString("type", type.getName())
-            );
+        captureAndSave(true);
+    }
+
+    private void captureAndSave(boolean clearUser) {
+        if (!petCaptureRunning.compareAndSet(false, true)) return;
+        List<Map.Entry<PetType, IEntityPet>> pets = List.copyOf(petMap.entrySet());
+        CompletableFuture<?>[] captures = pets.stream().map(entry -> {
+            PetType type = entry.getKey();
+            IEntityPet entityPet = entry.getValue();
+            return Scheduler.callEntity(entityPet.getEntity(), () -> {
+                respawnPets.add(new StorageTagCompound()
+                    .setTag("data", entityPet.asCompound())
+                    .setString("type", type.getName()));
+                PetRemoveEvent event = new PetRemoveEvent(this, entityPet);
+                Bukkit.getPluginManager().callEvent(event);
+                Utilities.runPetCommands(CommandReason.REVOKE, this, type);
+                petMap.remove(type, entityPet);
+                removeEntityGroup(entityPet);
+                return null;
+            }).exceptionally(throwable -> {
+                petMap.remove(type, entityPet);
+                return null;
+            });
+        }).toArray(CompletableFuture[]::new);
+
+        CompletableFuture<Void> transition = CompletableFuture.allOf(captures);
+        petTransition = transition;
+        pendingSave = transition.thenCompose(ignored -> {
+            StorageTagCompound data = toCompound();
+            CompletableFuture<Boolean> save = PetCore.getInstance().getSqlHandler().sendPlayerData(uuid, name, data);
+            if (clearUser) {
+                nameMap.clear();
+                vehicle = null;
+                savedPetData.clear();
+                hatPets.clear();
+                ownedPets.clear();
+                petMap.clear();
+                respawnPets.clear();
+                isLoaded = false;
+            }
+            return save;
         });
-        // If the server is shutting down
-        if (!PetCore.getInstance().isEnabled()) {
-            // TBD: We want to block the thread to save everything...
-            PetCore.getInstance().getSqlHandler().sendPlayerDataSync(uuid, name, toCompound());
-            return;
-        }
-        updateDatabase().thenAccept(callback -> {
-            // Reset everything after we finish saving
-            removePets();
-            this.nameMap.clear();
-            this.vehicle = null;
-            this.savedPetData.clear();
-            this.hatPets.clear();
-            this.ownedPets.clear();
-            this.petMap.clear();
-            this.respawnPets.clear();
-            isLoaded = false;
-        });
+        if (!clearUser) pendingSave.whenComplete((ignored, throwable) -> petCaptureRunning.set(false));
+    }
+
+    public CompletableFuture<Boolean> getPendingSave() {
+        return pendingSave;
+    }
+
+    public void saveSynchronouslyOnDisable() {
+        petMap.forEach((type, entityPet) -> respawnPets.add(new StorageTagCompound()
+            .setTag("data", entityPet.asCompound())
+            .setString("type", type.getName())));
+        PetCore.getInstance().getSqlHandler().sendPlayerDataSync(uuid, name, toCompound());
     }
 
     /**
@@ -296,6 +316,16 @@ public class PetOwner implements PetUser {
     @Override
     public Player getPlayer() {
         return Bukkit.getPlayer(uuid);
+    }
+
+    @Override
+    public Optional<Location> getUserLocation() {
+        Location location = lastKnownLocation;
+        return location == null ? Optional.empty() : Optional.of(location.clone());
+    }
+
+    public void updateLocation(Location location) {
+        if (location != null) lastKnownLocation = location.clone();
     }
 
     @Override
@@ -377,8 +407,7 @@ public class PetOwner implements PetUser {
         }
         updateDatabase();
         String finalName = name;
-        getPetEntity(type).ifPresent(entity -> {
-
+        getPetEntity(type).ifPresent(entity -> Scheduler.runEntity(entity.getEntity(), () -> {
             PetNameChangeEvent event = new PetNameChangeEvent(PetOwner.this, entity, finalName);
             Bukkit.getServer().getPluginManager().callEvent(event);
             if (event.isCancelled()) return;
@@ -386,7 +415,7 @@ public class PetOwner implements PetUser {
             entity.setPetName(finalName);
 
             SimplePets.getParticleHandler().sendParticle(ParticleManager.Reason.RENAME, getPlayer(), entity.getEntity().getLocation());
-        });
+        }));
     }
 
     @Override
@@ -403,43 +432,34 @@ public class PetOwner implements PetUser {
     public boolean removePet(PetType type) {
         if (!hasPet(type)) return false;
         if (isPetHat(type)) setPetHat(type, false);
-        PetRemoveEvent event = new PetRemoveEvent(this, petMap.get(type));
+        IEntityPet entityPet = petMap.remove(type);
+        if (entityPet == null) return false;
+        Scheduler.runEntity(entityPet.getEntity(), () -> removePetEntity(type, entityPet));
+        return true;
+    }
+
+    private void removePetEntity(PetType type, IEntityPet entityPet) {
+        PetRemoveEvent event = new PetRemoveEvent(this, entityPet);
         Bukkit.getPluginManager().callEvent(event);
         Utilities.runPetCommands(CommandReason.REVOKE, this, type);
-
-        IEntityPet entityPet = petMap.get(type);
-
         respawnPets.remove(new StorageTagCompound()
             .setTag("data", entityPet.asCompound())
             .setString("type", type.getName()));
+        removeEntityGroup(entityPet);
+    }
 
-        entityPet.getEntities().forEach(entity -> {
+    private void removeEntityGroup(IEntityPet entityPet) {
+        List<Entity> entities = List.copyOf(entityPet.getEntities());
+        entities.forEach(entity -> Scheduler.runEntity(entity, () -> {
             SimplePets.getParticleHandler().sendParticle(ParticleManager.Reason.REMOVE, getPlayer(), entity.getLocation());
             entity.remove();
-        });
-        petMap.remove(type);
-        return true;
+        }));
     }
 
     @Override
     public boolean removePets() {
         if (petMap.isEmpty()) return false;
-        petMap.forEach((type, entityPet) -> {
-            if (isPetHat(type)) setPetHat(type, false);
-            PetRemoveEvent event = new PetRemoveEvent(this, entityPet);
-            Bukkit.getPluginManager().callEvent(event);
-            Utilities.runPetCommands(CommandReason.REVOKE, this, type);
-
-            respawnPets.remove(new StorageTagCompound()
-                .setTag("data", entityPet.asCompound())
-                .setString("type", type.getName()));
-
-            entityPet.getEntities().forEach(entity -> {
-                SimplePets.getParticleHandler().sendParticle(ParticleManager.Reason.REMOVE, getPlayer(), entity.getLocation());
-                entity.remove();
-            });
-        });
-        petMap.clear();
+        List.copyOf(petMap.keySet()).forEach(this::removePet);
         return true;
     }
 
@@ -452,7 +472,8 @@ public class PetOwner implements PetUser {
     public Optional<IEntityPet> getPetEntity(PetType type) {
         if (petMap.containsKey(type)) {
             IEntityPet entityPet = petMap.get(type);
-            if (entityPet instanceof IEntityControllerPet)
+            if (entityPet instanceof IEntityControllerPet
+                    && Scheduler.isOwnedByCurrentRegion(entityPet.getEntity()))
                 entityPet = ((IEntityControllerPet) entityPet).getVisibleEntity();
             return Optional.of(entityPet);
         }
@@ -501,6 +522,12 @@ public class PetOwner implements PetUser {
     public void setPetHat(PetType type, boolean hat) {
         Objects.requireNonNull(type, "PetType can not be null");
         if (!hasPet(type)) return;
+        IEntityPet storedPet = petMap.get(type);
+        if (storedPet != null && !Scheduler.isOwnedByCurrentRegion(storedPet.getEntity())) {
+            storedPet.teleportToOwner();
+            Scheduler.runEntityLater(getPlayer(), () -> setPetHat(type, hat), 5L);
+            return;
+        }
 
         int d = 1;
         if (isPetVehicle(type)) {
@@ -533,7 +560,7 @@ public class PetOwner implements PetUser {
                 Bukkit.getPluginManager().callEvent(hatEvent);
                 // Set the pet as a hat
                 Entity finalEnt = ent;
-                PluginUtilities.getScheduler().runTaskLater(() -> {
+                Scheduler.runEntityLater(getPlayer(), () -> {
                     Utilities.runPetCommands(CommandReason.HAT, PetOwner.this, type);
                     Utilities.setPassenger(getPlayer(), getTopEntity(getPlayer()), finalEnt);
                     entityPet.togglePetHatTask(hat);
@@ -620,6 +647,12 @@ public class PetOwner implements PetUser {
             return false;
         }
         Player player = getPlayer();
+        IEntityPet storedPet = petMap.get(type);
+        if (storedPet != null && !Scheduler.isOwnedByCurrentRegion(storedPet.getEntity())) {
+            storedPet.teleportToOwner();
+            Scheduler.runEntityLater(player, () -> setPetVehicle(type, vehicle), 5L);
+            return false;
+        }
         if (type ==PetType.CREAKING) {
             player.sendMessage("""
                     §cRiding the Creaking Pet is disabled due to Mojang -.-
@@ -683,7 +716,7 @@ public class PetOwner implements PetUser {
             }
 
 
-            PluginUtilities.getScheduler().runTaskLater(entityPet::attachOwner, 2L);
+            Scheduler.runEntityLater(entityPet.getEntity(), entityPet::attachOwner, 2L);
         });
         return false;
     }

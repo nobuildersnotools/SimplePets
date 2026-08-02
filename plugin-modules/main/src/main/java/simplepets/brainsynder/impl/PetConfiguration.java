@@ -27,6 +27,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
 public class PetConfiguration implements PetConfigManager {
@@ -35,7 +36,7 @@ public class PetConfiguration implements PetConfigManager {
 
     public PetConfiguration(PetCore plugin) {
         this.plugin = plugin;
-        this.configMap = new HashMap<>();
+        this.configMap = new ConcurrentHashMap<>();
 
         for (PetType type : PetType.values()) {
             if (!type.isSupported()) continue;

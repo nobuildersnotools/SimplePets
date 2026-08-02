@@ -8,6 +8,7 @@ import org.bukkit.event.player.PlayerQuitEvent;
 import simplepets.brainsynder.PetCore;
 import simplepets.brainsynder.api.plugin.SimplePets;
 import simplepets.brainsynder.impl.PetOwner;
+import simplepets.brainsynder.utils.Scheduler;
 
 public class JoinLeaveListeners implements Listener {
 
@@ -28,9 +29,10 @@ public class JoinLeaveListeners implements Listener {
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
         PetCore.getInstance().getSqlHandler().fetchData(event.getPlayer().getUniqueId()).whenComplete((data, throwable) -> {
-            SimplePets.getUserManager().getPetUser(event.getPlayer()).ifPresent(user -> {
-                ((PetOwner) user).loadCompound(data);
-            });
+            if (throwable != null || data == null) return;
+            Scheduler.runEntity(event.getPlayer(), () ->
+                SimplePets.getUserManager().getPetUser(event.getPlayer()).ifPresent(user ->
+                    ((PetOwner) user).loadCompound(data)));
         });
     }
 }

@@ -1,11 +1,14 @@
 package simplepets.brainsynder.commands.list;
 
 import org.bsdevelopment.pluginutils.command.CommandBuilder;
+import org.bukkit.command.CommandSender;
 import simplepets.brainsynder.PetCore;
 import simplepets.brainsynder.api.plugin.config.MessageOption;
+import simplepets.brainsynder.api.plugin.config.internal.ConfigEntry;
 import simplepets.brainsynder.commands.PetCommandClass;
 import simplepets.brainsynder.managers.InventoryManager;
 import simplepets.brainsynder.managers.ItemManager;
+import simplepets.brainsynder.utils.Scheduler;
 
 public class ReloadCommand implements PetCommandClass {
 
@@ -19,7 +22,7 @@ public class ReloadCommand implements PetCommandClass {
                 .withSubcommand(buildInventoriesCommand())
                 .withSubcommand(buildParticlesCommand())
                 .withSubcommand(buildPetsCommand())
-                .executes((sender, args) -> {
+                .executes((sender, args) -> reload(sender, () -> {
                     PetCore plugin = PetCore.getInstance();
                     plugin.getConfiguration().reload();
                     plugin.getConfiguration().initValues();
@@ -28,65 +31,64 @@ public class ReloadCommand implements PetCommandClass {
                     plugin.reloadPetConfigManager();
                     ((InventoryManager) plugin.getGUIHandler()).initiate();
                     ((ItemManager) plugin.getItemHandler()).initiate();
-                    sender.sendMessage(plugin.getMessageFile().getTranslation(MessageOption.ALL_RELOADED));
-                });
+                }, MessageOption.ALL_RELOADED));
     }
 
     public CommandBuilder buildConfigCommand() {
         return CommandBuilder.create("config")
                 .withPermission("pet.commands.reload")
                 .withDescription("Reloads the config file")
-                .executes((sender, args) -> {
+                .executes((sender, args) -> reload(sender, () -> {
                     PetCore plugin = PetCore.getInstance();
                     plugin.getConfiguration().reload();
                     plugin.getConfiguration().initValues();
-                    sender.sendMessage(plugin.getMessageFile().getTranslation(MessageOption.CONFIG_RELOADED));
-                });
+                }, MessageOption.CONFIG_RELOADED));
     }
 
     public CommandBuilder buildMessagesCommand() {
         return CommandBuilder.create("messages")
                 .withPermission("pet.commands.reload")
                 .withDescription("Reloads the messages file")
-                .executes((sender, args) -> {
-                    PetCore plugin = PetCore.getInstance();
-                    plugin.getMessageFile().reload();
-                    sender.sendMessage(plugin.getMessageFile().getTranslation(MessageOption.MESSAGES_RELOADED));
-                });
+                .executes((sender, args) -> reload(sender,
+                    () -> PetCore.getInstance().getMessageFile().reload(), MessageOption.MESSAGES_RELOADED));
     }
 
     public CommandBuilder buildInventoriesCommand() {
         return CommandBuilder.create("inventories")
                 .withPermission("pet.commands.reload")
                 .withDescription("Reloads inventory and item files")
-                .executes((sender, args) -> {
+                .executes((sender, args) -> reload(sender, () -> {
                     PetCore plugin = PetCore.getInstance();
                     ((InventoryManager) plugin.getGUIHandler()).initiate();
                     ((ItemManager) plugin.getItemHandler()).initiate();
-                    sender.sendMessage(plugin.getMessageFile().getTranslation(MessageOption.INVENTORIES_RELOADED));
-                });
+                }, MessageOption.INVENTORIES_RELOADED));
     }
 
     public CommandBuilder buildParticlesCommand() {
         return CommandBuilder.create("particles")
                 .withPermission("pet.commands.reload")
                 .withDescription("Reloads the particle files")
-                .executes((sender, args) -> {
+                .executes((sender, args) -> reload(sender, () -> {
                     PetCore plugin = PetCore.getInstance();
                     plugin.getParticleHandler().reload(plugin);
-                    sender.sendMessage(plugin.getMessageFile().getTranslation(MessageOption.PARTICLES_RELOADED));
-                });
+                }, MessageOption.PARTICLES_RELOADED));
     }
 
     public CommandBuilder buildPetsCommand() {
         return CommandBuilder.create("pets")
                 .withPermission("pet.commands.reload")
                 .withDescription("Reloads the pet config files")
-                .executes((sender, args) -> {
+                .executes((sender, args) -> reload(sender, () -> {
                     PetCore plugin = PetCore.getInstance();
                     plugin.reloadPetConfigManager();
                     InventoryManager.SELECTION.reloadAvailableTypes();
-                    sender.sendMessage(plugin.getMessageFile().getTranslation(MessageOption.PETS_RELOADED));
-                });
+                }, MessageOption.PETS_RELOADED));
+    }
+
+    private void reload(CommandSender sender, Runnable task, ConfigEntry<String> message) {
+        Scheduler.runGlobal(() -> {
+            task.run();
+            Scheduler.run(sender, () -> sender.sendMessage(PetCore.getInstance().getMessageFile().getTranslation(message)));
+        });
     }
 }

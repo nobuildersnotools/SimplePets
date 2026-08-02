@@ -1,6 +1,5 @@
 package simplepets.brainsynder.menu.items.list;
 
-import org.bsdevelopment.pluginutils.PluginUtilities;
 import org.bsdevelopment.pluginutils.inventory.ItemBuilder;
 import org.bukkit.Material;
 import simplepets.brainsynder.api.Namespace;
@@ -13,6 +12,7 @@ import simplepets.brainsynder.api.plugin.config.ConfigOption;
 import simplepets.brainsynder.api.user.PetUser;
 import simplepets.brainsynder.managers.InventoryManager;
 import simplepets.brainsynder.menu.inventory.PetSelectorMenu;
+import simplepets.brainsynder.utils.Scheduler;
 
 import java.io.File;
 
@@ -44,7 +44,7 @@ public class Hat extends Item {
         if (pet != null) {
             if (ConfigOption.MISC_TOGGLES_AUTO_CLOSE_HAT.get())
                 masterUser.getPlayer().closeInventory();
-            PluginUtilities.getScheduler().runTaskLater(() ->
+            Scheduler.runEntityLater(masterUser.getPlayer(), () ->
                 masterUser.setPetHat(pet.getPetType(), !masterUser.isPetHat(pet.getPetType())), 2);
             return;
         }
@@ -52,7 +52,7 @@ public class Hat extends Item {
         if (masterUser.getPetEntities().size() == 1) {
             if (ConfigOption.MISC_TOGGLES_AUTO_CLOSE_HAT.get())
                 masterUser.getPlayer().closeInventory();
-            PluginUtilities.getScheduler().runTaskLater(() ->
+            Scheduler.runEntityLater(masterUser.getPlayer(), () ->
                 masterUser.getPetEntities().stream().findFirst().ifPresent(iEntityPet ->
                     masterUser.setPetHat(iEntityPet.getPetType(), !masterUser.isPetHat(iEntityPet.getPetType()))), 2);
             return;
@@ -62,7 +62,7 @@ public class Hat extends Item {
         menu.setTask(masterUser.getPlayer().getName(), (user, type) -> {
             if (ConfigOption.MISC_TOGGLES_AUTO_CLOSE_HAT.get())
                 user.getPlayer().closeInventory();
-            PluginUtilities.getScheduler().runTaskLater(() ->
+            Scheduler.runEntityLater(user.getPlayer(), () ->
                 user.setPetHat(type, !user.isPetHat(type)), 2);
         });
         menu.open(masterUser, 1, inventory.getTitle());

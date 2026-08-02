@@ -17,9 +17,10 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.EnumMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class ParticleManager implements ParticleHandler {
-    private final Map<Reason, ParticleConfig> particles = new EnumMap<>(Reason.class);
+    private final Map<Reason, ParticleConfig> particles = new ConcurrentHashMap<>();
     private File folder;
 
     public ParticleManager(PetCore plugin) {

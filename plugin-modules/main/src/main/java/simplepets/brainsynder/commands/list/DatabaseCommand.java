@@ -1,16 +1,17 @@
 package simplepets.brainsynder.commands.list;
 
-import org.bsdevelopment.pluginutils.PluginUtilities;
 import org.bsdevelopment.pluginutils.chat.TellrawMessage;
 import org.bsdevelopment.pluginutils.chat.decoration.NamedTextColor;
 import org.bsdevelopment.pluginutils.command.CommandBuilder;
 import org.bsdevelopment.pluginutils.text.Colorize;
 import org.bsdevelopment.pluginutils.utilities.PasteClient;
 import org.bukkit.ChatColor;
+import org.bukkit.command.CommandSender;
 import simplepets.brainsynder.PetCore;
 import simplepets.brainsynder.api.plugin.config.MessageOption;
 import simplepets.brainsynder.commands.PetCommandClass;
 import simplepets.brainsynder.sql.SQLData;
+import simplepets.brainsynder.utils.Scheduler;
 
 public class DatabaseCommand implements PetCommandClass {
     @Override
@@ -23,6 +24,8 @@ public class DatabaseCommand implements PetCommandClass {
                 .withSubcommand(buildUpdateCommand())
                 .executes((sender, args) -> {
                     PetCore.getInstance().getSqlHandler().getRowCount().whenComplete((playerDataCount, throwable) -> {
+                        Scheduler.run(sender, () -> {
+                        if (failed(sender, throwable) || playerDataCount == null) return;
                         sender.sendMessage(PetCore.getInstance().getMessageFile().getTranslation(MessageOption.PREFIX) + Colorize.translateBungeeHex(" &#d1c9c9Player Data SQL &#b35349======&#de9790-------"));
                         sender.sendMessage(Colorize.translateBungeeHex(" &#e1eb5b- &#d1c9c9Type: &#e3c79a" + (SQLData.USE_SQLITE ? "SQLite" : "MySQL")));
                         TellrawMessage raw = TellrawMessage.of("&#e1eb5b - &#d1c9c9Status: ");
@@ -33,6 +36,7 @@ public class DatabaseCommand implements PetCommandClass {
                         }
                         raw.send(sender);
                         sender.sendMessage(Colorize.translateBungeeHex(" &#e1eb5b- &#d1c9c9Players In Database: &#e3c79a" + playerDataCount));
+                        });
                     });
                 });
     }
@@ -45,6 +49,8 @@ public class DatabaseCommand implements PetCommandClass {
                 .withDescription("Clears the database of any NPC/offline UUIDs")
                 .executes((sender, args) -> {
                     PetCore.getInstance().getSqlHandler().removeNPCs().whenComplete((biOptional, throwable) -> {
+                        Scheduler.run(sender, () -> {
+                        if (failed(sender, throwable) || biOptional == null) return;
                         int rawCount = biOptional.first().orElse(0);
                         int totalCount = biOptional.second().orElse(0);
 
@@ -56,6 +62,7 @@ public class DatabaseCommand implements PetCommandClass {
 
                         sender.sendMessage(PetCore.getInstance().getMessageFile().getTranslation(MessageOption.PREFIX) + ChatColor.GRAY + " Number of NPC accounts found: " + rawCount);
                         sender.sendMessage(PetCore.getInstance().getMessageFile().getTranslation(MessageOption.PREFIX) + ChatColor.GRAY + " Number of accounts actually deleted: " + totalCount);
+                        });
                     });
                 });
     }
@@ -68,6 +75,8 @@ public class DatabaseCommand implements PetCommandClass {
                 .withDescription("Clears the database of all duplicate players")
                 .executes((sender, args) -> {
                     PetCore.getInstance().getSqlHandler().removeDuplicates().whenComplete((biOptional, throwable) -> {
+                        Scheduler.run(sender, () -> {
+                        if (failed(sender, throwable) || biOptional == null) return;
                         int rawCount = biOptional.first().orElse(0);
                         int totalCount = biOptional.second().orElse(0);
 
@@ -79,6 +88,7 @@ public class DatabaseCommand implements PetCommandClass {
 
                         sender.sendMessage(PetCore.getInstance().getMessageFile().getTranslation(MessageOption.PREFIX) + ChatColor.GRAY + " Number of duplicate accounts found: " + rawCount);
                         sender.sendMessage(PetCore.getInstance().getMessageFile().getTranslation(MessageOption.PREFIX) + ChatColor.GRAY + " Number of duplicate entries actually deleted: " + totalCount);
+                        });
                     });
                 });
     }
@@ -92,6 +102,8 @@ public class DatabaseCommand implements PetCommandClass {
                 .executes((sender, args) -> {
                     sender.sendMessage(PetCore.getInstance().getMessageFile().getTranslation(MessageOption.PREFIX) + ChatColor.GRAY + " Finding any duplicates in the database...");
                     PetCore.getInstance().getSqlHandler().findDuplicates().whenComplete((triples, throwable) -> {
+                        Scheduler.run(sender, () -> {
+                        if (failed(sender, throwable) || triples == null) return;
                         if (triples.isEmpty()) {
                             sender.sendMessage(PetCore.getInstance().getMessageFile().getTranslation(MessageOption.PREFIX) + ChatColor.GRAY + " No duplicate players were found in the database.");
                             return;
@@ -103,18 +115,26 @@ public class DatabaseCommand implements PetCommandClass {
                             builder.append("[Count: ").append(triple.right).append("]   '").append(triple.middle).append("'    (").append(triple.left.toString()).append(")").append("\n");
                         });
 
-                        PluginUtilities.getScheduler().runTaskAsynchronously(() -> {
+                        Scheduler.runAsync(() -> {
                             try {
                                 String pasteUrl = PasteClient.pasteUrl(PasteClient.upload(builder.toString(), "plain"));
-                                PluginUtilities.getScheduler().runTask(() -> {
+                                Scheduler.run(sender, () -> {
                                     sender.sendMessage(PetCore.getInstance().getMessageFile().getTranslation(MessageOption.PREFIX) + ChatColor.GRAY + " Here is a list of duplicated players: ");
                                     sender.sendMessage(PetCore.getInstance().getMessageFile().getTranslation(MessageOption.PREFIX) + ChatColor.GRAY + " " + pasteUrl);
                                 });
                             } catch (Exception e) {
-                                PluginUtilities.getScheduler().runTask(() -> sender.sendMessage(PetCore.getInstance().getMessageFile().getTranslation(MessageOption.PREFIX) + ChatColor.RED + " Failed to upload paste: " + e.getMessage()));
+                                Scheduler.run(sender, () -> sender.sendMessage(PetCore.getInstance().getMessageFile().getTranslation(MessageOption.PREFIX) + ChatColor.RED + " Failed to upload paste: " + e.getMessage()));
                             }
+                        });
                         });
                     });
                 });
+    }
+
+    private static boolean failed(CommandSender sender, Throwable throwable) {
+        if (throwable == null) return false;
+        sender.sendMessage(PetCore.getInstance().getMessageFile().getTranslation(MessageOption.PREFIX)
+            + ChatColor.RED + " Database operation failed: " + throwable.getMessage());
+        return true;
     }
 }

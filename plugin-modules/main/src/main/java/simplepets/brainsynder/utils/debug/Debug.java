@@ -2,7 +2,6 @@ package simplepets.brainsynder.utils.debug;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import org.bsdevelopment.pluginutils.PluginUtilities;
 import org.bsdevelopment.pluginutils.libs.json.JsonArray;
 import org.bsdevelopment.pluginutils.libs.json.JsonObject;
 import org.bukkit.Bukkit;
@@ -13,6 +12,7 @@ import simplepets.brainsynder.debug.DebugBuilder;
 import simplepets.brainsynder.debug.DebugLevel;
 import simplepets.brainsynder.debug.DebugLogger;
 import simplepets.brainsynder.files.ConfigFile;
+import simplepets.brainsynder.utils.Scheduler;
 
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -26,6 +26,7 @@ public class Debug implements DebugLogger {
     private final PetCore core;
     private static final Map<String, LinkedList<DebugBuilder>> debugStorage;
     private static final LinkedList<DebugBuilder> debugLog;
+    private static final Object LOG_LOCK = new Object();
 
     static {
         debugStorage = Maps.newHashMap();
@@ -45,13 +46,14 @@ public class Debug implements DebugLogger {
             }
         }
 
-        debugLog.addLast(builder);
-
         String className = builder.getCallerClassName();
         if (className == null) className = "UNKNOWN";
-        LinkedList<DebugBuilder> storage = debugStorage.getOrDefault(className, Lists.newLinkedList());
-        storage.addLast(builder);
-        debugStorage.put(className, storage);
+        synchronized (LOG_LOCK) {
+            debugLog.addLast(builder);
+            LinkedList<DebugBuilder> storage = debugStorage.getOrDefault(className, Lists.newLinkedList());
+            storage.addLast(builder);
+            debugStorage.put(className, storage);
+        }
         if (builder.getLevel().isHidden()) return;
 
         if (!builder.getLevel().canBypassDisable()) {
@@ -68,11 +70,10 @@ public class Debug implements DebugLogger {
                             return;
                     }
                     if (builder.broadcast())
-                        Bukkit.getOnlinePlayers().stream().filter(ServerOperator::isOp).forEach(player -> {
-                            builder.getMessages().forEach(message -> {
+                        Bukkit.getOnlinePlayers().stream().filter(ServerOperator::isOp).forEach(player ->
+                            Scheduler.runEntity(player, () -> builder.getMessages().forEach(message -> {
                                 player.sendMessage(builder.getLevel().getPrefixColor() + "[SimplePets] " + builder.getLevel().getTextColor() + message);
-                            });
-                        });
+                            })));
 
                     builder.getMessages().forEach(message -> {
                         Bukkit.getConsoleSender().sendMessage(builder.getLevel().getPrefixColor() + "[SimplePets " + builder.getLevel().getName() + "] " + builder.getLevel().getTextColor() + message);
@@ -81,11 +82,10 @@ public class Debug implements DebugLogger {
             } else {
                 runnable = () -> {
                     if (builder.broadcast())
-                        Bukkit.getOnlinePlayers().stream().filter(ServerOperator::isOp).forEach(player -> {
-                            builder.getMessages().forEach(message -> {
+                        Bukkit.getOnlinePlayers().stream().filter(ServerOperator::isOp).forEach(player ->
+                            Scheduler.runEntity(player, () -> builder.getMessages().forEach(message -> {
                                 player.sendMessage(builder.getLevel().getPrefixColor() + "[SimplePets] " + builder.getLevel().getTextColor() + message);
-                            });
-                        });
+                            })));
                     builder.getMessages().forEach(message -> {
                         Bukkit.getConsoleSender().sendMessage(builder.getLevel().getPrefixColor() + "[SimplePets " + builder.getLevel().getName() + "] " + builder.getLevel().getTextColor() + message);
                     });
@@ -94,11 +94,10 @@ public class Debug implements DebugLogger {
         } else {
             runnable = () -> {
                 if (builder.broadcast())
-                    Bukkit.getOnlinePlayers().stream().filter(ServerOperator::isOp).forEach(player -> {
-                        builder.getMessages().forEach(message -> {
+                    Bukkit.getOnlinePlayers().stream().filter(ServerOperator::isOp).forEach(player ->
+                        Scheduler.runEntity(player, () -> builder.getMessages().forEach(message -> {
                             player.sendMessage(builder.getLevel().getPrefixColor() + "[SimplePets] " + builder.getLevel().getTextColor() + message);
-                        });
-                    });
+                        })));
                 builder.getMessages().forEach(message -> {
                     Bukkit.getConsoleSender().sendMessage(builder.getLevel().getPrefixColor() + "[SimplePets " + builder.getLevel().getName() + "] " + builder.getLevel().getTextColor() + message);
                 });
@@ -109,7 +108,7 @@ public class Debug implements DebugLogger {
 
         if (builder.sync()) {
             Runnable finalRunnable = runnable;
-            PluginUtilities.getScheduler().runTask(finalRunnable);
+            Scheduler.runGlobal(finalRunnable);
         } else {
             runnable.run();
         }
@@ -141,6 +140,7 @@ public class Debug implements DebugLogger {
         JsonObject information = new JsonObject();
         JsonObject quickLog = new JsonObject();
 
+        synchronized (LOG_LOCK) {
         debugStorage.forEach((s, logs) -> {
             JsonObject log = new JsonObject();
             LinkedList<DebugBuilder> debugLog = Lists.newLinkedList(logs);
@@ -186,12 +186,15 @@ public class Debug implements DebugLogger {
             information.add(String.valueOf(builder.timestamp), data);
         }
         json.set("detailed_log", information);
+        }
 
         return json;
     }
 
     @Override
     public LinkedList<DebugBuilder> getDebugLog() {
-        return Lists.newLinkedList(debugLog);
+        synchronized (LOG_LOCK) {
+            return Lists.newLinkedList(debugLog);
+        }
     }
 }

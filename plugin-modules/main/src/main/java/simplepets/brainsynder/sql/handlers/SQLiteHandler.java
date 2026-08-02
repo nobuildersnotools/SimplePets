@@ -18,9 +18,10 @@ import java.util.concurrent.CompletableFuture;
 
 public class SQLiteHandler implements SQLHandler {
     private Connection sqliteConnection;
+    private final Object connectionLock = new Object();
 
     @Override
-    public Connection implementConnection() {
+    public synchronized Connection implementConnection() {
         if (sqliteConnection != null) return sqliteConnection;
         return sqliteConnection = loadSqlite();
     }
@@ -54,12 +55,12 @@ public class SQLiteHandler implements SQLHandler {
     @Override
     public CompletableFuture<Boolean> sendPlayerData(UUID uuid, String name, StorageTagCompound compound) {
         return CompletableFuture
-            .supplyAsync(() -> sendPlayerDataSync(uuid, name, compound), PetCore.getInstance().async)
-            .thenApplyAsync(result -> result, PetCore.getInstance().sync);
+            .supplyAsync(() -> sendPlayerDataSync(uuid, name, compound), PetCore.getInstance().async);
     }
 
     @Override
     public boolean sendPlayerDataSync(UUID uuid, String name, StorageTagCompound compound) {
+        synchronized (connectionLock) {
         try {
             Connection connection = implementConnection();
             // Checks if the uuid is in the MySQL database
@@ -102,11 +103,13 @@ public class SQLiteHandler implements SQLHandler {
         } catch (SQLException exception) {
             return false;
         }
+        }
     }
 
     @Override
     public CompletableFuture<StorageTagCompound> fetchData(UUID uuid) {
         return CompletableFuture.supplyAsync(() -> {
+            synchronized (connectionLock) {
             StorageTagCompound compound = new StorageTagCompound();
 
             try {
@@ -129,12 +132,14 @@ public class SQLiteHandler implements SQLHandler {
             }
 
             return compound;
-        }, PetCore.getInstance().async).thenApplyAsync(result -> result, PetCore.getInstance().sync);
+            }
+        }, PetCore.getInstance().async);
     }
 
     @Override
     public CompletableFuture<Integer> getRowCount() {
         return CompletableFuture.supplyAsync(() -> {
+            synchronized (connectionLock) {
             int count = 0;
 
             try {
@@ -153,12 +158,14 @@ public class SQLiteHandler implements SQLHandler {
             }
 
             return count;
-        }, PetCore.getInstance().async).thenApplyAsync(result -> result, PetCore.getInstance().sync);
+            }
+        }, PetCore.getInstance().async);
     }
 
     @Override
     public CompletableFuture<BiOptional<Integer, Integer>> removeDuplicates() {
         return CompletableFuture.supplyAsync(() -> {
+            synchronized (connectionLock) {
             int rawCount = 0;
             int totalCount = 0;
 
@@ -269,12 +276,14 @@ public class SQLiteHandler implements SQLHandler {
             }
 
             return BiOptional.of(rawCount, totalCount);
-        }, PetCore.getInstance().async).thenApplyAsync(result -> result, PetCore.getInstance().sync);
+            }
+        }, PetCore.getInstance().async);
     }
 
     @Override
     public CompletableFuture<BiOptional<Integer, Integer>> removeNPCs() {
         return CompletableFuture.supplyAsync(() -> {
+            synchronized (connectionLock) {
             int rawCount = 0;
             int totalCount = 0;
 
@@ -305,12 +314,14 @@ public class SQLiteHandler implements SQLHandler {
             }
 
             return BiOptional.of(rawCount, totalCount);
-        }, PetCore.getInstance().async).thenApplyAsync(result -> result, PetCore.getInstance().sync);
+            }
+        }, PetCore.getInstance().async);
     }
 
     @Override
     public CompletableFuture<List<Triple<UUID, String, Integer>>> findDuplicates() {
         return CompletableFuture.supplyAsync(() -> {
+            synchronized (connectionLock) {
             List<Triple<UUID, String, Integer>> list = new ArrayList<>();
             try {
                 Connection connection = implementConnection();
@@ -329,6 +340,7 @@ public class SQLiteHandler implements SQLHandler {
             } catch (SQLException ignored) {
             }
             return list;
-        }, PetCore.getInstance().async).thenApplyAsync(result -> result, PetCore.getInstance().sync);
+            }
+        }, PetCore.getInstance().async);
     }
 }

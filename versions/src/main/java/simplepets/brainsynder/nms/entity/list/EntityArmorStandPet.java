@@ -17,7 +17,6 @@ import net.minecraft.world.phys.Vec3;
 import org.bsdevelopment.nbt.StorageBase;
 import org.bsdevelopment.nbt.StorageTagCompound;
 import org.bsdevelopment.nbt.StorageTagString;
-import org.bsdevelopment.pluginutils.PluginUtilities;
 import org.bsdevelopment.pluginutils.inventory.ItemBuilder;
 import org.bsdevelopment.pluginutils.libs.json.JsonObject;
 import org.bukkit.ChatColor;
@@ -36,7 +35,6 @@ import org.bukkit.inventory.meta.SkullMeta;
 import org.bukkit.util.EulerAngle;
 import simplepets.brainsynder.api.entity.ambient.IEntityArmorStandPet;
 import simplepets.brainsynder.api.entity.misc.IEntityControllerPet;
-import simplepets.brainsynder.api.other.ParticleHandler;
 import simplepets.brainsynder.api.pet.CommandReason;
 import simplepets.brainsynder.api.pet.PetType;
 import simplepets.brainsynder.api.plugin.SimplePets;
@@ -45,6 +43,7 @@ import simplepets.brainsynder.nms.EntitySelector;
 import simplepets.brainsynder.nms.entity.special.EntityControllerPet;
 import simplepets.brainsynder.nms.helper.VersionHelper;
 import simplepets.brainsynder.utils.Utilities;
+import simplepets.brainsynder.utils.Scheduler;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -104,7 +103,7 @@ public class EntityArmorStandPet extends ArmorStand implements IEntityArmorStand
         stand.setInvisible(false);
         VersionHelper.addEntity(((CraftWorld) location.getWorld()).getHandle(), stand, CreatureSpawnEvent.SpawnReason.CUSTOM);
         pet.setIgnoreVanish(true);
-        PluginUtilities.getScheduler().runTaskLater(() -> stand.getBukkitEntity().setGravity(true), 60);
+        Scheduler.runEntityLater(stand.getBukkitEntity(), () -> stand.getBukkitEntity().setGravity(true), 60);
         return stand;
     }
 
@@ -163,8 +162,12 @@ public class EntityArmorStandPet extends ArmorStand implements IEntityArmorStand
     public void tick() {
         super.tick();
         Entity bukkitEntity = this.getBukkitEntity();
-        if ((this.pet == null)
-                || (pet.getBukkitEntity().isDead())
+        if (this.pet == null) {
+            VersionHelper.killEntity(this, (ServerLevel) level());
+            return;
+        }
+        if (!Scheduler.isOwnedByCurrentRegion(pet.getBukkitEntity())) return;
+        if ((pet.getBukkitEntity().isDead())
                 || (!pet.getBukkitEntity().isValid())) {
             VersionHelper.killEntity(this, (ServerLevel) level());
             return;
@@ -172,11 +175,14 @@ public class EntityArmorStandPet extends ArmorStand implements IEntityArmorStand
 
         // Handles all other Pet Tasks...
         if (user == null
-                || user.getPlayer() == null
-                || !user.getPlayer().isOnline()
-                || !user.hasPet(PetType.ARMOR_STAND)) {
+                || user.getPlayer() == null) {
             if (bukkitEntity != null)
                 bukkitEntity.remove();
+            return;
+        }
+        if (!Scheduler.isOwnedByCurrentRegion(user.getPlayer())) return;
+        if (!user.getPlayer().isOnline() || !user.hasPet(PetType.ARMOR_STAND)) {
+            if (bukkitEntity != null) bukkitEntity.remove();
             return;
         }
 
@@ -242,12 +248,7 @@ public class EntityArmorStandPet extends ArmorStand implements IEntityArmorStand
 
     @Override
     public void teleportToOwner() {
-        user.getUserLocation().ifPresent(location -> {
-            setPos(location.getX(), location.getY(), location.getZ());
-            pet.setPos(location.getX(), location.getY(), location.getZ());
-            SimplePets.getPetUtilities().runPetCommands(CommandReason.TELEPORT, user, getPetType());
-            SimplePets.getParticleHandler().sendParticle(ParticleHandler.Reason.TELEPORT, user.getPlayer(), location);
-        });
+        pet.teleportToOwner();
     }
 
     @Override

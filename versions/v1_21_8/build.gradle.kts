@@ -17,6 +17,7 @@ dependencies {
 
     compileOnly(libs.pluginutils)
     paperweight.paperDevBundle(latestMinecraft)
+    compileOnly("net.kyori:adventure-text-serializer-ansi:4.24.0")
 }
 
 // TODO: This needs to be removed once 26.1 comes out
@@ -39,4 +40,3 @@ tasks {
         relocate("org.bukkit.craftbukkit", "org.bukkit.craftbukkit.$spigotNMS")
     }
 }
-

@@ -17,6 +17,7 @@ import simplepets.brainsynder.api.plugin.config.MessageOption;
 import simplepets.brainsynder.api.user.PetUser;
 import simplepets.brainsynder.dialog.RenameDialog;
 import simplepets.brainsynder.utils.RenameType;
+import simplepets.brainsynder.utils.Scheduler;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -55,17 +56,18 @@ public class RenameManager {
             .withFirstPrompt(new PetRenamePrompt())
             .addConversationAbandonedListener(event -> {
                 if (event.gracefulExit()) {
-                    String name = event.getContext().getSessionData("name").toString(); // It's a string prompt for a reason
-                    if (name.equalsIgnoreCase("cancel")) {
-                        user.getPlayer().sendMessage(PetCore.getInstance().getMessageFile().getTranslation(MessageOption.RENAME_VIA_CHAT_CANCEL));
-                        return;
-                    }
-                    if (name.equalsIgnoreCase("reset")) name = null;
-                    PetRenameEvent renameEvent = new PetRenameEvent(user, type, name);
-                    Bukkit.getPluginManager().callEvent(renameEvent);
+                    Scheduler.runEntity(user.getPlayer(), () -> {
+                        String name = event.getContext().getSessionData("name").toString(); // It's a string prompt for a reason
+                        if (name.equalsIgnoreCase("cancel")) {
+                            user.getPlayer().sendMessage(PetCore.getInstance().getMessageFile().getTranslation(MessageOption.RENAME_VIA_CHAT_CANCEL));
+                            return;
+                        }
+                        if (name.equalsIgnoreCase("reset")) name = null;
+                        PetRenameEvent renameEvent = new PetRenameEvent(user, type, name);
+                        Bukkit.getPluginManager().callEvent(renameEvent);
 
-                    if (!renameEvent.isCancelled()) user.setPetName(renameEvent.getName(), type);
-
+                        if (!renameEvent.isCancelled()) user.setPetName(renameEvent.getName(), type);
+                    });
                 }
             });
         factory.buildConversation(user.getPlayer()).begin();

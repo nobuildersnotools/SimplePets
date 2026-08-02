@@ -6,16 +6,16 @@ import com.comphenix.protocol.events.PacketAdapter;
 import com.comphenix.protocol.events.PacketContainer;
 import com.comphenix.protocol.events.PacketEvent;
 import com.comphenix.protocol.wrappers.BlockPosition;
-import org.bsdevelopment.pluginutils.PluginUtilities;
 import org.bsdevelopment.pluginutils.text.Colorize;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
+import org.bukkit.block.data.BlockData;
 import org.bukkit.plugin.Plugin;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.Objects;
 import java.util.function.BiPredicate;
 
@@ -31,7 +31,7 @@ public final class SignMenuFactory {
 
     public SignMenuFactory(Plugin plugin) {
         this.plugin = plugin;
-        this.inputReceivers = new HashMap<>();
+        this.inputReceivers = new ConcurrentHashMap<>();
         this.listen();
     }
 
@@ -56,11 +56,11 @@ public final class SignMenuFactory {
                 boolean success = menu.response.test(player, event.getPacket().getStringArrays().read(0));
 
                 if (!success && menu.reopenIfFail && !menu.forceClose) {
-                    PluginUtilities.getScheduler().runTaskLater(() -> menu.open(player), 2L);
+                    Scheduler.runEntityLater(player, () -> menu.open(player), 2L);
                 }
-                PluginUtilities.getScheduler().runTaskLater(() -> {
+                Scheduler.runEntityLater(player, () -> {
                     if (player.isOnline()) {
-                        player.sendBlockChange(menu.location, menu.location.getBlock().getBlockData());
+                        player.sendBlockChange(menu.location, menu.originalBlockData);
                     }
                 }, 2L);
             }
@@ -75,6 +75,7 @@ public final class SignMenuFactory {
         private boolean reopenIfFail;
 
         private Location location;
+        private BlockData originalBlockData;
 
         private boolean forceClose;
 
@@ -99,6 +100,7 @@ public final class SignMenuFactory {
             }
             location = player.getLocation();
             location.setY(location.getBlockY() - 4);
+            originalBlockData = location.getBlock().getBlockData();
 
             player.sendBlockChange(location, Material.OAK_SIGN.createBlockData());
             player.sendSignChange(

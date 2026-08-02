@@ -31,6 +31,7 @@ import simplepets.brainsynder.utils.Keys;
 
 import java.io.File;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class PetSelectorMenu extends CustomInventory {
     private Map<String, ListPager<PetTypeStorage>> pagerMap;
@@ -42,8 +43,8 @@ public class PetSelectorMenu extends CustomInventory {
 
     @Override
     public void loadDefaults() {
-        pagerMap = new HashMap<>();
-        taskMap = new HashMap<>();
+        pagerMap = new ConcurrentHashMap<>();
+        taskMap = new ConcurrentHashMap<>();
 
         setDefault("__COMMENT__", "This is used when you are selecting a pet EG: pet renaming via the GUI item");
         setDefault("size", 54);

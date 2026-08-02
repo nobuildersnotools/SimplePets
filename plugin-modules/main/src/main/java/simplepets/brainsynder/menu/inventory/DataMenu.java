@@ -17,9 +17,11 @@ import simplepets.brainsynder.api.plugin.config.ConfigOption;
 import simplepets.brainsynder.api.user.PetUser;
 import simplepets.brainsynder.managers.ItemManager;
 import simplepets.brainsynder.menu.inventory.holders.PetDataHolder;
+import simplepets.brainsynder.utils.Scheduler;
 
 import java.io.File;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class DataMenu extends CustomInventory {
     private Map<String, PetType> typeMap;
@@ -30,7 +32,7 @@ public class DataMenu extends CustomInventory {
 
     @Override
     public void loadDefaults() {
-        typeMap = new HashMap<>();
+        typeMap = new ConcurrentHashMap<>();
         setDefault("size", 54);
         setDefault("title_comment", "The title of the GUI can support regular color codes '&c' and HEX color codes '&#FFFFFF'");
         setDefault("title", "&#de9790[] &#b35349Pet Data Changer");
@@ -88,6 +90,7 @@ public class DataMenu extends CustomInventory {
         Player player = user.getPlayer();
 
         PetType type = typeMap.getOrDefault(player.getName(), PetType.UNKNOWN);
+        if (!isPetRegionReady(user, type, () -> open(user, page))) return;
 
         Inventory inv = Bukkit.createInventory(new PetDataHolder(), getInteger("size", 54), Colorize.translateBungeeHex(getString("title", "&#de9790[] &#b35349Pet Data Changer")));
         int placeHolder = inv.getSize();
@@ -130,6 +133,7 @@ public class DataMenu extends CustomInventory {
         if (!(inv.getHolder() instanceof PetDataHolder)) return;
 
         PetType type = typeMap.getOrDefault(player.getName(), PetType.UNKNOWN);
+        if (!isPetRegionReady(user, type, () -> update(user))) return;
         int placeHolder = inv.getSize();
         while (placeHolder > 0) {
             inv.setItem(placeHolder - 1, ItemManager.PLACEHOLDER.getItemBuilder().build());
@@ -171,6 +175,14 @@ public class DataMenu extends CustomInventory {
                 inv.addItem(((ItemBuilder) o).build());
             });
         });
+    }
+
+    private boolean isPetRegionReady(PetUser user, PetType type, Runnable retry) {
+        Optional<IEntityPet> pet = user.getPetEntity(type);
+        if (pet.isEmpty() || Scheduler.isOwnedByCurrentRegion(pet.get().getEntity())) return true;
+        pet.get().teleportToOwner();
+        Scheduler.runEntityLater(user.getPlayer(), retry, 5L);
+        return false;
     }
 
     @Override

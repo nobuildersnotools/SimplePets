@@ -1,6 +1,5 @@
 package simplepets.brainsynder.menu.items.list;
 
-import org.bsdevelopment.pluginutils.PluginUtilities;
 import org.bsdevelopment.pluginutils.inventory.ItemBuilder;
 import org.bukkit.Material;
 import simplepets.brainsynder.api.Namespace;
@@ -11,6 +10,7 @@ import simplepets.brainsynder.api.plugin.config.ConfigOption;
 import simplepets.brainsynder.api.user.PetUser;
 import simplepets.brainsynder.managers.InventoryManager;
 import simplepets.brainsynder.menu.inventory.PetSelectorMenu;
+import simplepets.brainsynder.utils.Scheduler;
 
 import java.io.File;
 
@@ -36,7 +36,7 @@ public class Name extends Item {
 
         if (pet != null) {
             masterUser.getPlayer().closeInventory();
-            PluginUtilities.getScheduler().runTaskLater(() ->
+            Scheduler.runEntityLater(masterUser.getPlayer(), () ->
                 masterUser.getPlayer().performCommand("pet rename " + pet.getPetType().getName()), 2);
             return;
         }
@@ -44,7 +44,7 @@ public class Name extends Item {
         PetSelectorMenu menu = InventoryManager.SELECTOR;
         menu.setTask(masterUser.getPlayer().getName(), (user, type) -> {
             user.getPlayer().closeInventory();
-            PluginUtilities.getScheduler().runTaskLater(() ->
+            Scheduler.runEntityLater(masterUser.getPlayer(), () ->
                 user.getPlayer().performCommand("pet rename " + type.getName()), 2);
         });
         menu.open(masterUser, 1, inventory.getTitle());
