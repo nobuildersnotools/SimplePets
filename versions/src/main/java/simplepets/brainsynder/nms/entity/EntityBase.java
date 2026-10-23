@@ -9,16 +9,17 @@ import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerEntity;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobCategory;
+import net.minecraft.world.entity.vehicle.VehicleEntity;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.Vec3;
 import org.bsdevelopment.pluginutils.reflection.Reflection;
 import org.bukkit.craftbukkit.CraftWorld;
-import org.bukkit.craftbukkit.entity.CraftEntity;
 import org.bukkit.craftbukkit.entity.CraftLivingEntity;
 import simplepets.brainsynder.api.pet.PetType;
 import simplepets.brainsynder.api.user.PetUser;
@@ -37,7 +38,7 @@ public class EntityBase extends Mob {
     protected final EntityType<? extends Mob> originalEntityType;
     private PetUser user;
     private PetType petType;
-    private volatile CraftEntity bukkitEntity;
+    private volatile CraftLivingEntity bukkitEntity;
 
     protected EntityBase(EntityType<? extends Mob> entitytypes, Level world) {
         super(entitytypes, world);
@@ -81,6 +82,12 @@ public class EntityBase extends Mob {
     @Override
     protected void handlePortal() {
         // fuck around and find out
+    }
+
+    @Override
+    public boolean startRiding(Entity vehicle, boolean force, boolean callEvent) {
+        if (vehicle instanceof VehicleEntity) return false;
+        return super.startRiding(vehicle, force, callEvent);
     }
 
     public void populateDataAccess(PetDataAccess dataAccess) {}
@@ -152,7 +159,7 @@ public class EntityBase extends Mob {
     }
 
     @Override
-    public CraftEntity getBukkitEntity() {
+    public CraftLivingEntity getBukkitEntity() {
         if (this.bukkitEntity == null) {
             synchronized (this) {
                 if (this.bukkitEntity == null) {
@@ -167,7 +174,7 @@ public class EntityBase extends Mob {
      * Overrides the Paper method
      */
     public CraftLivingEntity getBukkitLivingEntity() {
-        return (CraftLivingEntity) this.getBukkitEntity();
+        return this.getBukkitEntity();
     }
 
     public Packet<ClientGamePacketListener> getAddEntityPacket(ServerEntity entitytrackerentry) {

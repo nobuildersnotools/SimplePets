@@ -13,11 +13,17 @@ import simplepets.brainsynder.api.user.PetUser;
 import simplepets.brainsynder.nms.entity.EntityPetOverride;
 import simplepets.brainsynder.nms.utils.PetDataAccess;
 
+import static simplepets.brainsynder.api.pet.PetDataRegistry.SHAKE;
+
+/**
+ * NMS: {@link net.minecraft.world.entity.monster.piglin.AbstractPiglin}
+ */
 public abstract class EntityPiglinAbstractPet extends EntityPetOverride implements IShaking {
     private static final EntityDataAccessor<Boolean> IMMUNE_TO_ZOMBIFICATION = SynchedEntityData.defineId(EntityPiglinAbstractPet.class, EntityDataSerializers.BOOLEAN);
 
     public EntityPiglinAbstractPet(EntityType<? extends Mob> entitytypes, PetType type, PetUser user) {
         super(entitytypes, type, user);
+        setShaking(false);
     }
 
     @Override
@@ -29,25 +35,25 @@ public abstract class EntityPiglinAbstractPet extends EntityPetOverride implemen
     @Override
     public void populateDataAccess(PetDataAccess dataAccess) {
         super.populateDataAccess(dataAccess);
-        dataAccess.define(IMMUNE_TO_ZOMBIFICATION, true);
+        dataAccess.define(IMMUNE_TO_ZOMBIFICATION, false);
     }
 
     @Override
     public StorageTagCompound asCompound() {
         StorageTagCompound object = super.asCompound();
-        object.setBoolean("shaking", isShaking());
+        object.setBoolean(SHAKE.namespace(), isShaking());
         return object;
     }
 
     @Override
     public void applyCompound(StorageTagCompound object) {
-        if (object.hasKey("shaking")) setShaking(object.getBoolean("shaking"));
+        if (object.hasKey(SHAKE.namespace())) setShaking(object.getBoolean(SHAKE.namespace()));
         super.applyCompound(object);
     }
 
     @Override
     public boolean isShaking() {
-        return entityData.get(IMMUNE_TO_ZOMBIFICATION);
+        return !entityData.get(IMMUNE_TO_ZOMBIFICATION);
     }
 
     @Override

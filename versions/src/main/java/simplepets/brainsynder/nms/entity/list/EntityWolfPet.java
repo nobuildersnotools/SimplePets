@@ -25,6 +25,10 @@ import simplepets.brainsynder.nms.utils.VariantUtils;
 
 import java.util.Optional;
 
+import static simplepets.brainsynder.api.pet.PetDataRegistry.COLOR;
+import static simplepets.brainsynder.api.pet.PetDataRegistry.SHAKE;
+import static simplepets.brainsynder.api.pet.PetDataRegistry.Wolf.*;
+
 /**
  * NMS: {@link net.minecraft.world.entity.animal.wolf.Wolf}
  */
@@ -64,7 +68,7 @@ public class EntityWolfPet extends EntityTameablePet implements IEntityWolfPet {
         dataAccess.define(DATA_SOUND_VARIANT_ID, soundReference.or(registry::getAny).orElseThrow());
         dataAccess.define(BEGGING, false);
         dataAccess.define(COLLAR_COLOR, DyeColorWrapper.WHITE.getWoolData());
-        dataAccess.define(ANGER_TIME, 0L);
+        dataAccess.define(ANGER_TIME, -1L);
     }
 
     @Override
@@ -82,27 +86,27 @@ public class EntityWolfPet extends EntityTameablePet implements IEntityWolfPet {
                 level().broadcastEntityEvent(this, (byte)8); // Wolf shaking
             }
         }
-        if (this.angry && (entityData.get(ANGER_TIME) < 50)) entityData.set(ANGER_TIME, 500L);
+        if (this.angry && ((entityData.get(ANGER_TIME) - level().getGameTime()) < 50)) setAngry(true);
     }
 
     @Override
     public StorageTagCompound asCompound() {
         StorageTagCompound compound = super.asCompound();
-        compound.setEnum("type", getWolfType());
-        compound.setString("color", getColor().name().toLowerCase());
-        compound.setBoolean("angry", isAngry());
-        compound.setBoolean("tilted", isHeadTilted());
-        compound.setBoolean("shaking", furWet);
+        compound.setEnum(VARIANT.namespace(), getWolfType());
+        compound.setString(COLOR.namespace(), getColor().name().toLowerCase());
+        compound.setBoolean(ANGRY.namespace(), isAngry());
+        compound.setBoolean(TILT.namespace(), isHeadTilted());
+        compound.setBoolean(SHAKE.namespace(), furWet);
         return compound;
     }
 
     @Override
     public void applyCompound(StorageTagCompound object) {
-        if (object.hasKey("type")) setWolfType(object.getEnum("type", WolfVariant.class));
-        if (object.hasKey("color")) setColor(DyeColorWrapper.getByName(object.getString("color")));
-        if (object.hasKey("angry")) setAngry(object.getBoolean("angry", false));
-        if (object.hasKey("tilted")) setHeadTilted(object.getBoolean("tilted", false));
-        if (object.hasKey("shaking")) setShaking(object.getBoolean("shaking", false));
+        if (object.hasKey(VARIANT.namespace())) setWolfType(object.getEnum(VARIANT.namespace(), WolfVariant.class));
+        if (object.hasKey(COLOR.namespace())) setColor(DyeColorWrapper.getByName(object.getString(COLOR.namespace())));
+        if (object.hasKey(ANGRY.namespace())) setAngry(object.getBoolean(ANGRY.namespace(), false));
+        if (object.hasKey(TILT.namespace())) setHeadTilted(object.getBoolean(TILT.namespace(), false));
+        if (object.hasKey(SHAKE.namespace())) setShaking(object.getBoolean(SHAKE.namespace(), false));
         super.applyCompound(object);
     }
 
@@ -118,13 +122,13 @@ public class EntityWolfPet extends EntityTameablePet implements IEntityWolfPet {
 
     @Override
     public boolean isAngry() {
-        return entityData.get(ANGER_TIME) > 0L;
+        return entityData.get(ANGER_TIME) > level().getGameTime();
     }
 
     @Override
     public void setAngry(boolean angry) {
         this.angry = angry;
-        entityData.set(ANGER_TIME, angry ? 500L : 0L);
+        entityData.set(ANGER_TIME, angry ? (level().getGameTime() + 500L) : -1L);
     }
 
     @Override

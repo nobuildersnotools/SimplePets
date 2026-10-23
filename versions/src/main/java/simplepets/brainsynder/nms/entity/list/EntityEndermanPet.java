@@ -1,5 +1,6 @@
 package simplepets.brainsynder.nms.entity.list;
 
+import net.minecraft.commands.arguments.blocks.BlockStateParser;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
@@ -22,8 +23,11 @@ import simplepets.brainsynder.nms.utils.PetDataAccess;
 
 import java.util.Optional;
 
+import static simplepets.brainsynder.api.pet.PetDataRegistry.Enderman.SCREAM;
+
 /**
- * NMS: {@link net.minecraft.world.entity.monster.Enderman}
+ * NMS: {@link net.minecraft.world.entity.monster.Enderman} // 26.3+
+ * NMS: {@link net.minecraft.world.entity.monster.EnderMan} // 26.2 and below
  */
 public class EntityEndermanPet extends EntityPetOverride implements IEntityEndermanPet {
     private static final EntityDataAccessor<Optional<BlockState>> CARRIED_BLOCK = SynchedEntityData.defineId(EntityEndermanPet.class, EntityDataSerializers.OPTIONAL_BLOCK_STATE);
@@ -49,15 +53,15 @@ public class EntityEndermanPet extends EntityPetOverride implements IEntityEnder
     @Override
     public StorageTagCompound asCompound() {
         StorageTagCompound object = super.asCompound();
-        object.setBoolean("screaming", isScreaming());
+        object.setBoolean(SCREAM.namespace(), isScreaming());
         Optional<BlockState> data = entityData.get(CARRIED_BLOCK);
-        data.ifPresent(iBlockData -> object.setString("carried_block", CraftBlockData.fromData(iBlockData).getAsString()));
+        data.ifPresent(iBlockData -> object.setString("carried_block", BlockStateParser.serialize(iBlockData)));
         return object;
     }
 
     @Override
     public void applyCompound(StorageTagCompound object) {
-        if (object.hasKey("screaming")) setScreaming(object.getBoolean("screaming"));
+        if (object.hasKey(SCREAM.namespace())) setScreaming(object.getBoolean(SCREAM.namespace()));
         if (object.hasKey("carried_block")) {
             String raw = object.getString("carried_block", Material.STONE.createBlockData().getAsString());
             try {
@@ -93,8 +97,9 @@ public class EntityEndermanPet extends EntityPetOverride implements IEntityEnder
 
     @Override
     public BlockData getCarriedBlock() {
-        BlockState blockData = (BlockState)((Optional)this.entityData.get(CARRIED_BLOCK)).orElse(null);
-        return CraftBlockData.fromData(blockData);
+        BlockState blockData = this.entityData.get(CARRIED_BLOCK).orElse(null);
+        if (blockData == null) return Material.AIR.createBlockData();
+        return Bukkit.createBlockData(BlockStateParser.serialize(blockData));
     }
 
     @Override

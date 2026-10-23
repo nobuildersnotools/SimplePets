@@ -432,6 +432,15 @@ public interface PetDataRegistry {
                 .value(IEntityHorsePet::getStyle).build();
     }
 
+    interface IronGolem {
+        PetData<IEntityIronGolemPet> CRACKS = PetData.of("cracks", IEntityIronGolemPet.class)
+                .defaultValue(GolemCrackLevel.NONE)
+                .items(GolemCrackLevel.values(), value -> value.getIcon().withName("&#c8c8c8{name}: &a" + value.name()))
+                .onLeftClick(entityPet -> entityPet.setCrackLevel(PetData.cycleForward(entityPet.getCrackLevel(), GolemCrackLevel.values())))
+                .onRightClick(entityPet -> entityPet.setCrackLevel(PetData.cycleBackward(entityPet.getCrackLevel(), GolemCrackLevel.values())))
+                .value(IEntityIronGolemPet::getCrackLevel).build();
+    }
+
     interface Llama {
         PetData<IEntityLlamaPet> SKIN = PetData.of("skin", IEntityLlamaPet.class)
                 .defaultValue(LlamaColor.CREAMY)
@@ -475,6 +484,13 @@ public interface PetDataRegistry {
                 .item(false, ItemBuilder.playerSkull("http://textures.minecraft.net/texture/dca096eea506301bea6d4b17ee1605625a6f5082c71f74a639cc940439f47166").withName("&#c8c8c8{name}: &cfalse"))
                 .onToggle(entityPet -> entityPet.setSneezing(!entityPet.isSneezing()))
                 .value(IEntityPandaPet::isSneezing).build();
+
+        PetData<IEntityPandaPet> EATING = PetData.of("eating", IEntityPandaPet.class)
+                .defaultValue(false)
+                .item(true, ItemBuilder.of(Material.BAMBOO).withName("&#c8c8c8{name}: &atrue"))
+                .item(false, ItemBuilder.of(Material.BAMBOO).withName("&#c8c8c8{name}: &cfalse"))
+                .onToggle(entityPet -> entityPet.setEating(!entityPet.isEating()))
+                .value(IEntityPandaPet::isEating).build();
     }
 
     interface Parrot {
@@ -569,6 +585,15 @@ public interface PetDataRegistry {
                 .item(false, ItemBuilder.playerSkull("http://textures.minecraft.net/texture/11136616d8c4a87a54ce78a97b551610c2b2c8f6d410bc38b858f974b113b208").withName("&#c8c8c8{name}: &cfalse"))
                 .onToggle(entityPet -> entityPet.setHasPumpkin(!entityPet.hasPumpkin()))
                 .value(IEntitySnowmanPet::hasPumpkin).build();
+    }
+
+    interface Strider {
+        PetData<IEntityStriderPet> COLD = PetData.of("cold", IEntityStriderPet.class)
+                .defaultValue(false)
+                .item(true, ItemBuilder.of(Material.BLUE_ICE).withName("&#c8c8c8{name}: &atrue"))
+                .item(false, ItemBuilder.of(Material.LAVA_BUCKET).withName("&#c8c8c8{name}: &cfalse"))
+                .onToggle(entityPet -> entityPet.setCold(!entityPet.isCold()))
+                .value(IEntityStriderPet::isCold).build();
     }
 
     interface TropicalFish {

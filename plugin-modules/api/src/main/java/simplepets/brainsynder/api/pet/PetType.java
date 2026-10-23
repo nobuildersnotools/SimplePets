@@ -157,7 +157,7 @@ public enum PetType {
     ILLUSIONER(IEntityIllusionerPet.class, "512512e7d016a2343a7bff1a4cd15357ab851579f1389bd4e3a24cbeb88b", PetDataRegistry.SPELL),
 
     @PetCustomization(ambient = "ENTITY_IRON_GOLEM_STEP", weight = PetWeight.HEAVY)
-    IRON_GOLEM(IEntityIronGolemPet.class, "89091d79ea0f59ef7ef94d7bba6e5f17f2f7d4572c44f90f76c4819a714"),
+    IRON_GOLEM(IEntityIronGolemPet.class, "89091d79ea0f59ef7ef94d7bba6e5f17f2f7d4572c44f90f76c4819a714", PetDataRegistry.IronGolem.CRACKS),
 
     @PetCustomization(ambient = "ENTITY_LLAMA_AMBIENT", weight = PetWeight.HEAVY)
     LLAMA(IEntityLlamaPet.class, "818cd457fbaf327fa39f10b5b36166fd018264036865164c02d9e5ff53f45",
@@ -182,7 +182,7 @@ public enum PetType {
 
     @PetCustomization(ambient = "ENTITY_PANDA_AMBIENT", weight = PetWeight.HEAVY)
     PANDA(IEntityPandaPet.class, "dca096eea506301bea6d4b17ee1605625a6f5082c71f74a639cc940439f47166",
-        PetDataRegistry.BABY, PetDataRegistry.Panda.GENE, PetDataRegistry.SITTING, PetDataRegistry.SLEEP, PetDataRegistry.Panda.SNEEZE),
+        PetDataRegistry.BABY, PetDataRegistry.Panda.GENE, PetDataRegistry.Panda.EATING, PetDataRegistry.SLEEP, PetDataRegistry.Panda.SNEEZE),
 
     @PetCustomization(ambient = "ENTITY_PARCHED_AMBIENT", weight = PetWeight.SLIGHTLY_HEAVY)
     PARCHED(IEntityParchedPet.class, "24aeceff5f26dd8413c5c03547c234ac03108d187af0b9cd834a8ce12598591c"),
@@ -263,7 +263,7 @@ public enum PetType {
     STRAY(IEntityStrayPet.class, "2c5097916bc0565d30601c0eebfeb287277a34e867b4ea43c63819d53e89ede7"),
 
     @PetCustomization(ambient = "ENTITY_STRIDER_AMBIENT", weight = PetWeight.HEAVY)
-    STRIDER(IEntityStriderPet.class, "cb7ffdda656c68d88851a8e05b48cd2493773ffc4ab7d64e9302229fe3571059", PetDataRegistry.BABY, PetDataRegistry.SADDLE),
+    STRIDER(IEntityStriderPet.class, "cb7ffdda656c68d88851a8e05b48cd2493773ffc4ab7d64e9302229fe3571059", PetDataRegistry.BABY, PetDataRegistry.SADDLE, PetDataRegistry.Strider.COLD),
 
     @PetCustomization(ambient = "ENTITY_SULFUR_CUBE_SQUISH", weight = PetWeight.SLIGHTLY_HEAVY)
     SULFUR_CUBE(IEntitySulfurCubePet.class, "f0d9056ec6db388af12304ef96ffdc8228dcf368ab255323258b716f990b4ab", PetDataRegistry.SIZE),
@@ -369,8 +369,8 @@ public enum PetType {
         this.entityClass = entityClass;
         LinkedList<PetData<?>> list = Lists.newLinkedList();
         list.addFirst(PetDataRegistry.SILENT);
-        list.addFirst(PetDataRegistry.BURNING);
-        list.addFirst(PetDataRegistry.FROZEN);
+        if (entityClass != IEntityWardenPet.class) list.addFirst(PetDataRegistry.BURNING);
+        if (entityClass != IEntityStriderPet.class) list.addFirst(PetDataRegistry.FROZEN);
         list.addFirst(PetDataRegistry.VISIBLE);
         if ((!IEntityArmorStandPet.class.isInstance(entityClass)) && (!IEntityShulkerPet.class.isInstance(entityClass)))
             list.addFirst(PetDataRegistry.HALF_SCALE);

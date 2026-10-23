@@ -26,7 +26,7 @@ permissions:
         default: true # Allows players to use them by default
 
     pet.commands.modify: # Grants access to the '/pet modify' command
-        default: false # Not given to players by default
+        default: op # Only Operators should be given this permission
 
     pet.commands.remove: # Grants access to the '/pet remove' command
         default: true # Allows players to use them by default
@@ -1926,7 +1926,7 @@ permissions:
             pet.type.panda.data.silent: true
             pet.type.panda.data.baby: true
             pet.type.panda.data.type: true
-            pet.type.panda.data.sitting: true
+            pet.type.panda.data.eating: true
             pet.type.panda.data.sleeping: true
             pet.type.panda.data.sneeze: true
 

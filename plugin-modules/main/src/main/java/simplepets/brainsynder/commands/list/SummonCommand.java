@@ -8,7 +8,6 @@ import org.bsdevelopment.pluginutils.command.CommandBuilder;
 import org.bsdevelopment.pluginutils.command.CommandPermission;
 import org.bsdevelopment.pluginutils.command.arguments.PlayerArgument;
 import org.bsdevelopment.pluginutils.command.arguments.StorageTagArgument;
-import org.bsdevelopment.pluginutils.command.arguments.suggestions.ArgumentSuggestions;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -26,8 +25,6 @@ import simplepets.brainsynder.commands.PetCommandClass;
 import simplepets.brainsynder.utils.Utilities;
 import simplepets.brainsynder.utils.Scheduler;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class SummonCommand implements PetCommandClass {
@@ -38,11 +35,10 @@ public class SummonCommand implements PetCommandClass {
                 .withAliases("spawn")
                 .withPermission("pet.commands.summon")
                 .withDescription("Spawns a pet for yourself")
-                .withRequirement(sender -> sender instanceof Player)
                 .withSubcommand(buildAllCommand())
                 .withSubcommand(buildTargetCommand())
                 .withArguments(ACCESSIBLE_PET_TYPES)
-                .withArguments(buildNbtArgument(false))
+                .withArguments(buildNbtArgument())
                 .executesPlayer((player, args) -> {
                     ISpawnUtil spawner = PetCore.getInstance().getSpawnUtil();
                     if (spawner == null) return;
@@ -90,7 +86,7 @@ public class SummonCommand implements PetCommandClass {
                 .withDescription("Spawns a pet for another player")
                 .withArguments(new PlayerArgument("player"))
                 .withArguments(ALL_PET_TYPES)
-                .withArguments(buildNbtArgument(true))
+                .withArguments(buildNbtArgument())
                 .executes((sender, args) -> {
                     ISpawnUtil spawner = PetCore.getInstance().getSpawnUtil();
                     if (spawner == null) return;
@@ -148,33 +144,11 @@ public class SummonCommand implements PetCommandClass {
                 });
     }
 
-    /**
-     * Builds the optional nbt argument with suggestions based on context.
-     */
-    private StorageTagArgument buildNbtArgument(boolean hasPlayerArg) {
+    private StorageTagArgument buildNbtArgument() {
         return (StorageTagArgument) new StorageTagArgument("nbt")
                 .setOptional(true)
                 .withPermission(CommandPermission.of("pet.commands.summon.nbt"))
-                .replaceSuggestions(ArgumentSuggestions.of(info -> {
-                    List<String> suggestions = new ArrayList<>();
-                    suggestions.add("{}");
-
-                    if (info.previousArgs() == null) return suggestions;
-
-                    Player player = hasPlayerArg && info.previousArgs().has("player") ? info.previousArgs().get("player") : (info.sender() instanceof Player p ? p : null);
-                    if (player == null) return suggestions;
-
-                    PetType type = info.previousArgs().get("type");
-                    if (type == null || type == PetType.UNKNOWN) return suggestions;
-
-                    SimplePets.getUserManager().getPetUser(player).ifPresent(user -> user.getPetEntity(type).ifPresent(entityPet -> {
-                        if (!Scheduler.isOwnedByCurrentRegion(entityPet.getEntity())) return;
-                        String compoundStr = entityPet.asCompound().toString();
-                        if (!compoundStr.equals("{}")) suggestions.add(compoundStr);
-                    }));
-
-                    return suggestions;
-                }));
+                .replaceSuggestions(PET_NBT_SUGGESTIONS);
     }
 
     /**
@@ -191,12 +165,12 @@ public class SummonCommand implements PetCommandClass {
         }
     }
 
-    private void handleSpawnResult(org.bukkit.command.CommandSender sender, SpawnResult<IEntityPet> result, PetType type, StorageTagCompound compound) {
+    private void handleSpawnResult(CommandSender sender, SpawnResult<IEntityPet> result, PetType type, StorageTagCompound compound) {
         if (!result.isSuccess()) {
             if (result.isFailure()) {
                 Scheduler.run(sender, () -> TellrawMessage.of(PetCore.getInstance().getMessageFile()
                     .getTranslation(MessageOption.FAILED_SUMMON, false).replace("{type}", type.getName()))
-                    .tooltip(result.failMessage()).send(sender));
+                    .tooltip(result.failMessage().split("\n")).send(sender));
                 return;
             }
             Scheduler.run(sender, () -> sender.sendMessage(PetCore.getInstance().getMessageFile()

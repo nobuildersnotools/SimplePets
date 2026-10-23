@@ -12,6 +12,8 @@ import simplepets.brainsynder.nms.EntitySelector;
 import simplepets.brainsynder.nms.entity.EntityAgeablePet;
 import simplepets.brainsynder.nms.utils.PetDataAccess;
 
+import static simplepets.brainsynder.api.pet.PetDataRegistry.SHAKE;
+
 /**
  * NMS: {@link net.minecraft.world.entity.monster.hoglin.Hoglin}
  */
@@ -20,6 +22,7 @@ public class EntityHoglinPet extends EntityAgeablePet implements IEntityHoglinPe
 
     public EntityHoglinPet(PetType type, PetUser user) {
         super(EntitySelector.HOGLIN, type, user);
+        setShaking(false);
     }
 
     @Override
@@ -31,19 +34,19 @@ public class EntityHoglinPet extends EntityAgeablePet implements IEntityHoglinPe
     @Override
     public void populateDataAccess(PetDataAccess dataAccess) {
         super.populateDataAccess(dataAccess);
-        dataAccess.define(IMMUNE_TO_ZOMBIFICATION, true);
+        dataAccess.define(IMMUNE_TO_ZOMBIFICATION, false);
     }
 
     @Override
     public StorageTagCompound asCompound() {
         StorageTagCompound object = super.asCompound();
-        object.setBoolean("shaking", isShaking());
+        object.setBoolean(SHAKE.namespace(), isShaking());
         return object;
     }
 
     @Override
     public void applyCompound(StorageTagCompound object) {
-        if (object.hasKey("shaking")) setShaking(object.getBoolean("shaking"));
+        if (object.hasKey(SHAKE.namespace())) setShaking(object.getBoolean(SHAKE.namespace()));
         super.applyCompound(object);
     }
 

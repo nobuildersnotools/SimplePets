@@ -6,6 +6,7 @@ import net.minecraft.network.syncher.SynchedEntityData;
 import org.bsdevelopment.nbt.StorageTagCompound;
 import org.bsdevelopment.pluginutils.libs.json.JsonObject;
 import simplepets.brainsynder.api.entity.hostile.IEntityPiglinPet;
+import simplepets.brainsynder.api.pet.PetDataRegistry;
 import simplepets.brainsynder.api.pet.PetType;
 import simplepets.brainsynder.api.user.PetUser;
 import simplepets.brainsynder.nms.EntitySelector;
@@ -37,23 +38,23 @@ public class EntityPiglinPet extends EntityPiglinAbstractPet implements IEntityP
         super.populateDataAccess(dataAccess);
         dataAccess.define(BABY, false);
         dataAccess.define(CHARGING, false);
-        dataAccess.define(DANCING, false); // Makes them not shake by default - Why is it named dancing then...
+        dataAccess.define(DANCING, false);
     }
 
     @Override
     public StorageTagCompound asCompound() {
         StorageTagCompound object = super.asCompound();
-        object.setBoolean("baby", isBaby());
-        object.setBoolean("charging", isCharging());
-        object.setBoolean("dancing", isDancing());
+        object.setBoolean(PetDataRegistry.BABY.namespace(), isBaby());
+        object.setBoolean(PetDataRegistry.Piglin.CHARGING.namespace(), isCharging());
+        object.setBoolean(PetDataRegistry.Piglin.DANCING.namespace(), isDancing());
         return object;
     }
 
     @Override
     public void applyCompound(StorageTagCompound object) {
-        if (object.hasKey("baby")) setBaby(object.getBoolean("baby"));
-        if (object.hasKey("charging")) setCharging(object.getBoolean("charging"));
-        if (object.hasKey("dancing")) setDancing(object.getBoolean("dancing"));
+        if (object.hasKey(PetDataRegistry.BABY.namespace())) setBaby(object.getBoolean(PetDataRegistry.BABY.namespace()));
+        if (object.hasKey(PetDataRegistry.Piglin.CHARGING.namespace())) setCharging(object.getBoolean(PetDataRegistry.Piglin.CHARGING.namespace()));
+        if (object.hasKey(PetDataRegistry.Piglin.DANCING.namespace())) setDancing(object.getBoolean(PetDataRegistry.Piglin.DANCING.namespace()));
         super.applyCompound(object);
     }
 

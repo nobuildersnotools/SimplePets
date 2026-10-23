@@ -11,6 +11,7 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.decoration.ArmorStand;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
@@ -46,7 +47,7 @@ public class EntityGhostStand extends ArmorStand {
         EntityGhostStand stand = new EntityGhostStand(EntitySelector.ARMOR_STAND, Reflection.fetchWorldHandle(location.getWorld()), pet);
         stand.setPos(location.getX(), location.getY(), location.getZ());
         stand.setNoBasePlate(true);
-        stand.setInvulnerable(true);
+        VersionHelper.VERSION_TRANSLATOR.setInvulnerable(stand, true);
         stand.setInvisible(true);
         stand.persist = true;
         VersionHelper.addEntity(((CraftWorld) location.getWorld()).getHandle(), stand, CreatureSpawnEvent.SpawnReason.CUSTOM);
@@ -74,11 +75,11 @@ public class EntityGhostStand extends ArmorStand {
     }
 
     // Method was removed in version 26.1
-    public InteractionResult interactAt(net.minecraft.world.entity.player.Player entityhuman, Vec3 vec3d, InteractionHand enumhand) {
+    public InteractionResult interactAt(Player entityhuman, Vec3 vec3d, InteractionHand enumhand) {
         return InteractionResult.FAIL;
     }
     // Replacement for interactAt
-    public InteractionResult interact(net.minecraft.world.entity.player.Player entityhuman, InteractionHand hand, final Vec3 location) {
+    public InteractionResult interact(Player entityhuman, InteractionHand hand, final Vec3 location) {
         return InteractionResult.FAIL;
     }
 

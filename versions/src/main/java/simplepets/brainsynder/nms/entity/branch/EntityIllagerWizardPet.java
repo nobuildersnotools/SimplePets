@@ -11,11 +11,15 @@ import org.bsdevelopment.pluginutils.libs.json.JsonObject;
 import org.bsdevelopment.pluginutils.sound.SafeSound;
 import org.bukkit.Sound;
 import simplepets.brainsynder.api.entity.misc.IEntityWizard;
+import simplepets.brainsynder.api.pet.PetDataRegistry;
 import simplepets.brainsynder.api.pet.PetType;
 import simplepets.brainsynder.api.user.PetUser;
 import simplepets.brainsynder.api.wrappers.WizardSpell;
 import simplepets.brainsynder.nms.utils.PetDataAccess;
 
+/**
+ * NMS: {@link net.minecraft.world.entity.monster.illager.SpellcasterIllager}
+ */
 public class EntityIllagerWizardPet extends EntityIllagerAbstractPet implements IEntityWizard {
     private static final EntityDataAccessor<Byte> SPELL = SynchedEntityData.defineId(EntityIllagerWizardPet.class, EntityDataSerializers.BYTE);
 
@@ -38,13 +42,13 @@ public class EntityIllagerWizardPet extends EntityIllagerAbstractPet implements 
     @Override
     public StorageTagCompound asCompound() {
         StorageTagCompound object = super.asCompound();
-        object.setEnum("spell", getSpell());
+        object.setEnum(PetDataRegistry.SPELL.namespace(), getSpell());
         return object;
     }
 
     @Override
     public void applyCompound(StorageTagCompound object) {
-        if (object.hasKey("spell")) setSpell(object.getEnum("spell", WizardSpell.class, WizardSpell.NONE));
+        if (object.hasKey(PetDataRegistry.SPELL.namespace())) setSpell(object.getEnum(PetDataRegistry.SPELL.namespace(), WizardSpell.class, WizardSpell.NONE));
         super.applyCompound(object);
     }
 

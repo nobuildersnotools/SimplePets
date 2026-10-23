@@ -4,7 +4,7 @@ plugins {
     id("org.bsdevelopment.java-conventions")
     alias(libs.plugins.spigotweight)
 }
-var latestMinecraft = "26.2"
+var latestMinecraft = "26.3"
 
 dependencies {
     compileOnly(project(":api"))

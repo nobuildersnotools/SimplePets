@@ -16,6 +16,7 @@ import simplepets.brainsynder.managers.ItemManager;
 import simplepets.brainsynder.utils.Scheduler;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -116,7 +117,7 @@ public class RegenerateCommand implements PetCommandClass {
                         throw ArgumentParseException.fromString("Invalid pet type: " + info.input());
                     return optional.get();
                 }).replaceSuggestions(ArgumentSuggestions.of(info -> {
-                    List<String> list = new java.util.ArrayList<>();
+                    List<String> list = new ArrayList<>();
                     for (PetType type : PetType.values()) {
                         if (type == PetType.UNKNOWN) continue;
                         list.add(type.getName());

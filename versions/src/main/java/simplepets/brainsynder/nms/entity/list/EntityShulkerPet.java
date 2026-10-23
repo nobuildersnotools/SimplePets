@@ -36,6 +36,8 @@ import simplepets.brainsynder.utils.Scheduler;
 import java.util.*;
 import java.util.function.Function;
 
+import static simplepets.brainsynder.api.pet.PetDataRegistry.VISIBLE;
+
 public class EntityShulkerPet extends Shulker implements IEntityShulkerPet {
     private Map<String, StorageTagCompound> additional;
 
@@ -80,7 +82,7 @@ public class EntityShulkerPet extends Shulker implements IEntityShulkerPet {
     public static EntityShulkerPet spawn(Location location, EntityControllerPet pet, EntityGhostStand ghostStand) {
         EntityShulkerPet shulker = new EntityShulkerPet(pet, ghostStand, pet.getPetUser());
         shulker.setPos(location.getX(), location.getY(), location.getZ());
-        shulker.setInvulnerable(true);
+        VersionHelper.VERSION_TRANSLATOR.setInvulnerable(shulker, true);
         shulker.setNoAi(true);
         shulker.persist = true;
         VersionHelper.addEntity(((CraftWorld) location.getWorld()).getHandle(), shulker, CreatureSpawnEvent.SpawnReason.CUSTOM);
@@ -297,7 +299,7 @@ public class EntityShulkerPet extends Shulker implements IEntityShulkerPet {
     public StorageTagCompound asCompound() {
         StorageTagCompound object = pet.asCompound();
         object.setEnum("glow-color", getGlowColor());
-        if (!isPetVisible()) object.setBoolean("visible", !isPetVisible());
+        if (!isPetVisible()) object.setBoolean(VISIBLE.namespace(), !isPetVisible());
 
         if (!additional.isEmpty()) {
             StorageTagCompound additional = new StorageTagCompound();
@@ -312,7 +314,7 @@ public class EntityShulkerPet extends Shulker implements IEntityShulkerPet {
     public void applyCompound(StorageTagCompound object) {
         if (object.hasKey("glow-color")) setGlowColor(object.getEnum("glow-color", ChatColor.class, ChatColor.WHITE));
         if (object.hasKey("invisible")) setPetVisible(!object.getBoolean("invisible"));
-        if (object.hasKey("visible")) setPetVisible(object.getBoolean("visible"));
+        if (object.hasKey(VISIBLE.namespace())) setPetVisible(object.getBoolean(VISIBLE.namespace()));
         if (object.hasKey("additional")) {
             StorageTagCompound additional = object.getCompoundTag("additional");
             additional.getKeySet().forEach(pluginKey -> this.additional.put(pluginKey, additional.getCompoundTag(pluginKey)));

@@ -19,9 +19,8 @@ public class RemoveCommand implements PetCommandClass {
         return CommandBuilder.create("remove")
                 .withPermission("pet.commands.remove")
                 .withDescription("Remove your pet")
-                .withRequirement(sender -> sender instanceof Player)
                 .withSubcommand(buildTargetCommand())
-                .withArguments(ALL_PET_TYPES.setOptional(true))
+                .withArguments(OPTIONAL_PET_TYPES)
                 .executesPlayer((player, args) -> {
                     PetType type = args.has("type") ? args.get("type") : null;
                     removePets(player, player, type);
@@ -33,7 +32,7 @@ public class RemoveCommand implements PetCommandClass {
                 .withPermission("pet.commands.remove.other")
                 .withDescription("Remove a pet from another player")
                 .withArguments(new PlayerArgument("player"))
-                .withArguments(ALL_PET_TYPES.setOptional(true))
+                .withArguments(OPTIONAL_PET_TYPES)
                 .executes((sender, args) -> {
                     Player target = args.get("player");
                     PetType type = args.has("type") ? args.get("type") : null;
