@@ -107,6 +107,10 @@ public class SpawnerUtil implements ISpawnUtil {
                 customEntity = (EntityPet) petMap.get(type).getDeclaredConstructor(PetType.class, PetUser.class).newInstance(type, user);
             }
 
+            // Compound setters can access the Bukkit entity, whose Folia ownership is
+            // resolved from its position. Move it out of the constructor's origin first.
+            customEntity.snapTo(location.getX(), location.getY(), location.getZ(), location.getYaw(), location.getPitch());
+
             if ((compound != null) && (!compound.hasNoTags())) {
                 try {
                     customEntity.applyCompound(compound);
